@@ -333,12 +333,11 @@ class Column(object):
         return self.getField(item)
 
     def __getitem__(self, k):
-        if isinstance(k, slice):
-            if k.step is not None:
-                raise ValueError("slice with step is not supported.")
-            return self.substr(k.start, k.stop)
-        else:
+        if not isinstance(k, slice):
             return _bin_op("apply")(self, k)
+        if k.step is not None:
+            raise ValueError("slice with step is not supported.")
+        return self.substr(k.start, k.stop)
 
     def __iter__(self):
         raise TypeError("Column is not iterable")
@@ -423,7 +422,7 @@ class Column(object):
         elif isinstance(startPos, Column):
             jc = self._jc.substr(startPos._jc, length._jc)
         else:
-            raise TypeError("Unexpected type: %s" % type(startPos))
+            raise TypeError(f"Unexpected type: {type(startPos)}")
         return Column(jc)
 
     @ignore_unicode_prefix
@@ -554,16 +553,15 @@ class Column(object):
         """
 
         metadata = kwargs.pop('metadata', None)
-        assert not kwargs, 'Unexpected kwargs where passed: %s' % kwargs
+        assert not kwargs, f'Unexpected kwargs where passed: {kwargs}'
 
         sc = SparkContext._active_spark_context
         if len(alias) == 1:
-            if metadata:
-                jmeta = sc._jvm.org.apache.spark.sql.types.Metadata.fromJson(
-                    json.dumps(metadata))
-                return Column(getattr(self._jc, "as")(alias[0], jmeta))
-            else:
+            if not metadata:
                 return Column(getattr(self._jc, "as")(alias[0]))
+            jmeta = sc._jvm.org.apache.spark.sql.types.Metadata.fromJson(
+                json.dumps(metadata))
+            return Column(getattr(self._jc, "as")(alias[0], jmeta))
         else:
             if metadata:
                 raise ValueError('metadata can only be provided for a single column')
@@ -589,7 +587,7 @@ class Column(object):
             jdt = spark._jsparkSession.parseDataType(dataType.json())
             jc = self._jc.cast(jdt)
         else:
-            raise TypeError("unexpected type: %s" % type(dataType))
+            raise TypeError(f"unexpected type: {type(dataType)}")
         return Column(jc)
 
     astype = copy_func(cast, sinceversion=1.4, doc=":func:`astype` is an alias for :func:`cast`.")
@@ -692,7 +690,7 @@ class Column(object):
     __bool__ = __nonzero__
 
     def __repr__(self):
-        return 'Column<%s>' % self._jc.toString().encode('utf8')
+        return f"Column<{self._jc.toString().encode('utf8')}>"
 
 
 def _test():

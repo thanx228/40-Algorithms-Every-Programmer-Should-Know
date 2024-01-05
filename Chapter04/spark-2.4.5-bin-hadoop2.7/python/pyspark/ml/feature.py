@@ -3545,7 +3545,7 @@ class RFormula(JavaEstimator, HasFeaturesCol, HasLabelCol, HasHandleInvalid,
 
     def __str__(self):
         formulaStr = self.getFormula() if self.isDefined(self.formula) else ""
-        return "RFormula(%s) (uid=%s)" % (formulaStr, self.uid)
+        return f"RFormula({formulaStr}) (uid={self.uid})"
 
 
 class RFormulaModel(JavaModel, JavaMLReadable, JavaMLWritable):
@@ -3560,7 +3560,7 @@ class RFormulaModel(JavaModel, JavaMLReadable, JavaMLWritable):
 
     def __str__(self):
         resolvedFormula = self._call_java("resolvedFormula")
-        return "RFormulaModel(%s) (uid=%s)" % (resolvedFormula, self.uid)
+        return f"RFormulaModel({resolvedFormula}) (uid={self.uid})"
 
 
 @inherit_doc

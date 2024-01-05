@@ -95,12 +95,11 @@ class StreamingQuery(object):
 
         throws :class:`StreamingQueryException`, if `this` query has terminated with an exception
         """
-        if timeout is not None:
-            if not isinstance(timeout, (int, float)) or timeout < 0:
-                raise ValueError("timeout must be a positive integer or float. Got %s" % timeout)
-            return self._jsq.awaitTermination(int(timeout * 1000))
-        else:
+        if timeout is None:
             return self._jsq.awaitTermination()
+        if not isinstance(timeout, (int, float)) or timeout < 0:
+            raise ValueError(f"timeout must be a positive integer or float. Got {timeout}")
+        return self._jsq.awaitTermination(int(timeout * 1000))
 
     @property
     @since(2.1)
@@ -127,8 +126,7 @@ class StreamingQuery(object):
         None if there were no progress updates
         :return: a map
         """
-        lastProgress = self._jsq.lastProgress()
-        if lastProgress:
+        if lastProgress := self._jsq.lastProgress():
             return json.loads(lastProgress.json())
         else:
             return None
@@ -257,12 +255,11 @@ class StreamingQueryManager(object):
 
         throws :class:`StreamingQueryException`, if `this` query has terminated with an exception
         """
-        if timeout is not None:
-            if not isinstance(timeout, (int, float)) or timeout < 0:
-                raise ValueError("timeout must be a positive integer or float. Got %s" % timeout)
-            return self._jsqm.awaitAnyTermination(int(timeout * 1000))
-        else:
+        if timeout is None:
             return self._jsqm.awaitAnyTermination()
+        if not isinstance(timeout, (int, float)) or timeout < 0:
+            raise ValueError(f"timeout must be a positive integer or float. Got {timeout}")
+        return self._jsqm.awaitAnyTermination(int(timeout * 1000))
 
     @since(2.0)
     def resetTerminated(self):
@@ -391,13 +388,12 @@ class DataStreamReader(OptionUtils):
         if schema is not None:
             self.schema(schema)
         self.options(**options)
-        if path is not None:
-            if type(path) != str or len(path.strip()) == 0:
-                raise ValueError("If the path is provided for stream, it needs to be a " +
-                                 "non-empty string. List of paths are not supported.")
-            return self._df(self._jreader.load(path))
-        else:
+        if path is None:
             return self._df(self._jreader.load())
+        if type(path) != str or len(path.strip()) == 0:
+            raise ValueError("If the path is provided for stream, it needs to be a " +
+                             "non-empty string. List of paths are not supported.")
+        return self._df(self._jreader.load(path))
 
     @since(2.0)
     def json(self, path, schema=None, primitivesAsString=None, prefersDecimal=None,
@@ -723,7 +719,9 @@ class DataStreamWriter(object):
         >>> writer = sdf.writeStream.outputMode('append')
         """
         if not outputMode or type(outputMode) != str or len(outputMode.strip()) == 0:
-            raise ValueError('The output mode must be a non-empty string. Got: %s' % outputMode)
+            raise ValueError(
+                f'The output mode must be a non-empty string. Got: {outputMode}'
+            )
         self._jwrite = self._jwrite.outputMode(outputMode)
         return self
 
@@ -799,7 +797,7 @@ class DataStreamWriter(object):
         >>> writer = sdf.writeStream.queryName('streaming_query')
         """
         if not queryName or type(queryName) != str or len(queryName.strip()) == 0:
-            raise ValueError('The queryName must be a non-empty string. Got: %s' % queryName)
+            raise ValueError(f'The queryName must be a non-empty string. Got: {queryName}')
         self._jwrite = self._jwrite.queryName(queryName)
         return self
 
@@ -837,21 +835,23 @@ class DataStreamWriter(object):
         jTrigger = None
         if processingTime is not None:
             if type(processingTime) != str or len(processingTime.strip()) == 0:
-                raise ValueError('Value for processingTime must be a non empty string. Got: %s' %
-                                 processingTime)
+                raise ValueError(
+                    f'Value for processingTime must be a non empty string. Got: {processingTime}'
+                )
             interval = processingTime.strip()
             jTrigger = self._spark._sc._jvm.org.apache.spark.sql.streaming.Trigger.ProcessingTime(
                 interval)
 
         elif once is not None:
             if once is not True:
-                raise ValueError('Value for once must be True. Got: %s' % once)
+                raise ValueError(f'Value for once must be True. Got: {once}')
             jTrigger = self._spark._sc._jvm.org.apache.spark.sql.streaming.Trigger.Once()
 
         else:
             if type(continuous) != str or len(continuous.strip()) == 0:
-                raise ValueError('Value for continuous must be a non empty string. Got: %s' %
-                                 continuous)
+                raise ValueError(
+                    f'Value for continuous must be a non empty string. Got: {continuous}'
+                )
             interval = continuous.strip()
             jTrigger = self._spark._sc._jvm.org.apache.spark.sql.streaming.Trigger.Continuous(
                 interval)
@@ -977,7 +977,8 @@ class DataStreamWriter(object):
                 exists = hasattr(f, method_name)
                 if exists and not callable(getattr(f, method_name)):
                     raise Exception(
-                        "Attribute '%s' in provided object is not callable" % method_name)
+                        f"Attribute '{method_name}' in provided object is not callable"
+                    )
                 return exists
 
             open_exists = doesMethodExist('open')
@@ -1016,7 +1017,7 @@ class DataStreamWriter(object):
         serializer = AutoBatchedSerializer(PickleSerializer())
         wrapped_func = _wrap_function(self._spark._sc, func, serializer, serializer)
         jForeachWriter = \
-            self._spark._sc._jvm.org.apache.spark.sql.execution.python.PythonForeachWriter(
+                self._spark._sc._jvm.org.apache.spark.sql.execution.python.PythonForeachWriter(
                 wrapped_func, self._df._jdf.schema())
         self._jwrite.foreach(jForeachWriter)
         return self

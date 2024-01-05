@@ -33,9 +33,7 @@ __all__ = ['Broker', 'KafkaMessageAndMetadata', 'KafkaUtils', 'OffsetRange',
 
 def utf8_decoder(s):
     """ Decode the unicode as UTF-8 """
-    if s is None:
-        return None
-    return s.decode('utf-8')
+    return None if s is None else s.decode('utf-8')
 
 
 class KafkaUtils(object):
@@ -374,9 +372,10 @@ class KafkaRDD(RDD):
         """
         helper = KafkaUtils._get_helper(self.ctx)
         joffsetRanges = helper.offsetRangesOfKafkaRDD(self._jrdd.rdd())
-        ranges = [OffsetRange(o.topic(), o.partition(), o.fromOffset(), o.untilOffset())
-                  for o in joffsetRanges]
-        return ranges
+        return [
+            OffsetRange(o.topic(), o.partition(), o.fromOffset(), o.untilOffset())
+            for o in joffsetRanges
+        ]
 
 
 class KafkaDStream(DStream):

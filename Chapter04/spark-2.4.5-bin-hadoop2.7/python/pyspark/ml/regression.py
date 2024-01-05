@@ -201,12 +201,12 @@ class LinearRegressionModel(JavaModel, JavaPredictionModel, GeneralJavaMLWritabl
         training set. An exception is thrown if
         `trainingSummary is None`.
         """
-        if self.hasSummary:
-            java_lrt_summary = self._call_java("summary")
-            return LinearRegressionTrainingSummary(java_lrt_summary)
-        else:
-            raise RuntimeError("No training summary available for this %s" %
-                               self.__class__.__name__)
+        if not self.hasSummary:
+            raise RuntimeError(
+                f"No training summary available for this {self.__class__.__name__}"
+            )
+        java_lrt_summary = self._call_java("summary")
+        return LinearRegressionTrainingSummary(java_lrt_summary)
 
     @property
     @since("2.0.0")
@@ -227,7 +227,7 @@ class LinearRegressionModel(JavaModel, JavaPredictionModel, GeneralJavaMLWritabl
           instance of :py:class:`pyspark.sql.DataFrame`
         """
         if not isinstance(dataset, DataFrame):
-            raise ValueError("dataset must be a DataFrame but got %s." % type(dataset))
+            raise ValueError(f"dataset must be a DataFrame but got {type(dataset)}.")
         java_lr_summary = self._call_java("evaluate", dataset)
         return LinearRegressionSummary(java_lr_summary)
 
@@ -1638,12 +1638,12 @@ class GeneralizedLinearRegressionModel(JavaModel, JavaPredictionModel, JavaMLWri
         training set. An exception is thrown if
         `trainingSummary is None`.
         """
-        if self.hasSummary:
-            java_glrt_summary = self._call_java("summary")
-            return GeneralizedLinearRegressionTrainingSummary(java_glrt_summary)
-        else:
-            raise RuntimeError("No training summary available for this %s" %
-                               self.__class__.__name__)
+        if not self.hasSummary:
+            raise RuntimeError(
+                f"No training summary available for this {self.__class__.__name__}"
+            )
+        java_glrt_summary = self._call_java("summary")
+        return GeneralizedLinearRegressionTrainingSummary(java_glrt_summary)
 
     @property
     @since("2.0.0")
@@ -1664,7 +1664,7 @@ class GeneralizedLinearRegressionModel(JavaModel, JavaPredictionModel, JavaMLWri
           instance of :py:class:`pyspark.sql.DataFrame`
         """
         if not isinstance(dataset, DataFrame):
-            raise ValueError("dataset must be a DataFrame but got %s." % type(dataset))
+            raise ValueError(f"dataset must be a DataFrame but got {type(dataset)}.")
         java_glr_summary = self._call_java("evaluate", dataset)
         return GeneralizedLinearRegressionSummary(java_glr_summary)
 

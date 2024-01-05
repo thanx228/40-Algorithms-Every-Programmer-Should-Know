@@ -43,7 +43,7 @@ class Param(object):
 
     def __init__(self, parent, name, doc, typeConverter=None):
         if not isinstance(parent, Identifiable):
-            raise TypeError("Parent must be an Identifiable but got type %s." % type(parent))
+            raise TypeError(f"Parent must be an Identifiable but got type {type(parent)}.")
         self.parent = parent.uid
         self.name = str(name)
         self.doc = str(doc)
@@ -51,15 +51,14 @@ class Param(object):
 
     def _copy_new_parent(self, parent):
         """Copy the current param to a new parent, must be a dummy param."""
-        if self.parent == "undefined":
-            param = copy.copy(self)
-            param.parent = parent.uid
-            return param
-        else:
-            raise ValueError("Cannot copy from non-dummy parent %s." % parent)
+        if self.parent != "undefined":
+            raise ValueError(f"Cannot copy from non-dummy parent {parent}.")
+        param = copy.copy(self)
+        param.parent = parent.uid
+        return param
 
     def __str__(self):
-        return str(self.parent) + "__" + self.name
+        return f"{str(self.parent)}__{self.name}"
 
     def __repr__(self):
         return "Param(parent=%r, name=%r, doc=%r)" % (self.parent, self.name, self.doc)
@@ -121,7 +120,7 @@ class TypeConverters(object):
         elif isinstance(value, Vector):
             return list(value.toArray())
         else:
-            raise TypeError("Could not convert %s to list" % value)
+            raise TypeError(f"Could not convert {value} to list")
 
     @staticmethod
     def toListFloat(value):
@@ -132,7 +131,7 @@ class TypeConverters(object):
             value = TypeConverters.toList(value)
             if all(map(lambda v: TypeConverters._is_numeric(v), value)):
                 return [float(v) for v in value]
-        raise TypeError("Could not convert %s to list of floats" % value)
+        raise TypeError(f"Could not convert {value} to list of floats")
 
     @staticmethod
     def toListInt(value):
@@ -143,7 +142,7 @@ class TypeConverters(object):
             value = TypeConverters.toList(value)
             if all(map(lambda v: TypeConverters._is_integer(v), value)):
                 return [int(v) for v in value]
-        raise TypeError("Could not convert %s to list of ints" % value)
+        raise TypeError(f"Could not convert {value} to list of ints")
 
     @staticmethod
     def toListString(value):
@@ -154,7 +153,7 @@ class TypeConverters(object):
             value = TypeConverters.toList(value)
             if all(map(lambda v: TypeConverters._can_convert_to_string(v), value)):
                 return [TypeConverters.toString(v) for v in value]
-        raise TypeError("Could not convert %s to list of strings" % value)
+        raise TypeError(f"Could not convert {value} to list of strings")
 
     @staticmethod
     def toVector(value):
@@ -167,7 +166,7 @@ class TypeConverters(object):
             value = TypeConverters.toList(value)
             if all(map(lambda v: TypeConverters._is_numeric(v), value)):
                 return DenseVector(value)
-        raise TypeError("Could not convert %s to vector" % value)
+        raise TypeError(f"Could not convert {value} to vector")
 
     @staticmethod
     def toMatrix(value):
@@ -176,7 +175,7 @@ class TypeConverters(object):
         """
         if isinstance(value, Matrix):
             return value
-        raise TypeError("Could not convert %s to matrix" % value)
+        raise TypeError(f"Could not convert {value} to matrix")
 
     @staticmethod
     def toFloat(value):
@@ -186,7 +185,7 @@ class TypeConverters(object):
         if TypeConverters._is_numeric(value):
             return float(value)
         else:
-            raise TypeError("Could not convert %s to float" % value)
+            raise TypeError(f"Could not convert {value} to float")
 
     @staticmethod
     def toInt(value):
@@ -196,7 +195,7 @@ class TypeConverters(object):
         if TypeConverters._is_integer(value):
             return int(value)
         else:
-            raise TypeError("Could not convert %s to int" % value)
+            raise TypeError(f"Could not convert {value} to int")
 
     @staticmethod
     def toString(value):
@@ -210,7 +209,7 @@ class TypeConverters(object):
         elif type(value) == np.unicode_:
             return unicode(value)
         else:
-            raise TypeError("Could not convert %s to string type" % type(value))
+            raise TypeError(f"Could not convert {type(value)} to string type")
 
     @staticmethod
     def toBoolean(value):
@@ -220,7 +219,9 @@ class TypeConverters(object):
         if type(value) == bool:
             return value
         else:
-            raise TypeError("Boolean Param requires value of type bool. Found %s." % type(value))
+            raise TypeError(
+                f"Boolean Param requires value of type bool. Found {type(value)}."
+            )
 
 
 class Params(Identifiable):
@@ -279,13 +280,13 @@ class Params(Identifiable):
         values = []
         if self.isDefined(param):
             if param in self._defaultParamMap:
-                values.append("default: %s" % self._defaultParamMap[param])
+                values.append(f"default: {self._defaultParamMap[param]}")
             if param in self._paramMap:
-                values.append("current: %s" % self._paramMap[param])
+                values.append(f"current: {self._paramMap[param]}")
         else:
             values.append("undefined")
         valueStr = "(" + ", ".join(values) + ")"
-        return "%s: %s %s" % (param.name, param.doc, valueStr)
+        return f"{param.name}: {param.doc} {valueStr}"
 
     def explainParams(self):
         """
@@ -302,7 +303,7 @@ class Params(Identifiable):
         if isinstance(param, Param):
             return param
         else:
-            raise ValueError("Cannot find param with name %s." % paramName)
+            raise ValueError(f"Cannot find param with name {paramName}.")
 
     def isSet(self, param):
         """
@@ -392,7 +393,7 @@ class Params(Identifiable):
         try:
             value = param.typeConverter(value)
         except ValueError as e:
-            raise ValueError('Invalid param value given for param "%s". %s' % (param.name, e))
+            raise ValueError(f'Invalid param value given for param "{param.name}". {e}')
         self._paramMap[param] = value
 
     def _shouldOwn(self, param):
@@ -438,7 +439,7 @@ class Params(Identifiable):
                 try:
                     value = p.typeConverter(value)
                 except TypeError as e:
-                    raise TypeError('Invalid param value given for param "%s". %s' % (p.name, e))
+                    raise TypeError(f'Invalid param value given for param "{p.name}". {e}')
             self._paramMap[p] = value
         return self
 
@@ -459,8 +460,7 @@ class Params(Identifiable):
                 try:
                     value = p.typeConverter(value)
                 except TypeError as e:
-                    raise TypeError('Invalid default param value given for param "%s". %s'
-                                    % (p.name, e))
+                    raise TypeError(f'Invalid default param value given for param "{p.name}". {e}')
             self._defaultParamMap[p] = value
         return self
 

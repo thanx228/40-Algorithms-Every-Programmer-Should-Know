@@ -407,9 +407,9 @@ class SQLContext(object):
         True
         """
         if dbName is None:
-            return [name for name in self._ssql_ctx.tableNames()]
+            return list(self._ssql_ctx.tableNames())
         else:
-            return [name for name in self._ssql_ctx.tableNames(dbName)]
+            return list(self._ssql_ctx.tableNames(dbName))
 
     @since(1.0)
     def cacheTable(self, tableName):

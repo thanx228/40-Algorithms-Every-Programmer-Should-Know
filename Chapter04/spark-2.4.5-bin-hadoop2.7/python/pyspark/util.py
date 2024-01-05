@@ -44,22 +44,18 @@ def _exception_message(excp):
         # 'Py4JJavaError' has an issue about addressing non-ascii strings. So, here we work
         # around by the direct call, '__str__()'. Please see SPARK-23517.
         return excp.__str__()
-    if hasattr(excp, "message"):
-        return excp.message
-    return str(excp)
+    return excp.message if hasattr(excp, "message") else str(excp)
 
 
 def _get_argspec(f):
     """
     Get argspec of a function. Supports both Python 2 and Python 3.
     """
-    if sys.version_info[0] < 3:
-        argspec = inspect.getargspec(f)
-    else:
-        # `getargspec` is deprecated since python3.0 (incompatible with function annotations).
-        # See SPARK-23569.
-        argspec = inspect.getfullargspec(f)
-    return argspec
+    return (
+        inspect.getargspec(f)
+        if sys.version_info[0] < 3
+        else inspect.getfullargspec(f)
+    )
 
 
 class VersionUtils(object):
@@ -84,9 +80,9 @@ class VersionUtils(object):
         if m is not None:
             return (int(m.group(1)), int(m.group(2)))
         else:
-            raise ValueError("Spark tried to parse '%s' as a Spark" % sparkVersion +
-                             " version string, but it could not find the major and minor" +
-                             " version numbers.")
+            raise ValueError(
+                f"Spark tried to parse '{sparkVersion}' as a Spark version string, but it could not find the major and minor version numbers."
+            )
 
 
 def fail_on_stopiteration(f):

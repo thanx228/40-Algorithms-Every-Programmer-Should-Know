@@ -155,10 +155,10 @@ class SparkConf(object):
         if (key is not None and pairs is not None) or (key is None and pairs is None):
             raise Exception("Either pass one key-value pair or a list of pairs")
         elif key is not None:
-            self.set("spark.executorEnv." + key, value)
-        elif pairs is not None:
+            self.set(f"spark.executorEnv.{key}", value)
+        else:
             for (k, v) in pairs:
-                self.set("spark.executorEnv." + k, v)
+                self.set(f"spark.executorEnv.{k}", v)
         return self
 
     def setAll(self, pairs):
@@ -173,20 +173,15 @@ class SparkConf(object):
 
     def get(self, key, defaultValue=None):
         """Get the configured value for some key, or return a default otherwise."""
-        if defaultValue is None:   # Py4J doesn't call the right get() if we pass None
-            if self._jconf is not None:
-                if not self._jconf.contains(key):
-                    return None
-                return self._jconf.get(key)
-            else:
-                if key not in self._conf:
-                    return None
-                return self._conf[key]
-        else:
-            if self._jconf is not None:
-                return self._jconf.get(key, defaultValue)
-            else:
-                return self._conf.get(key, defaultValue)
+        if defaultValue is not None:
+            return (
+                self._jconf.get(key, defaultValue)
+                if self._jconf is not None
+                else self._conf.get(key, defaultValue)
+            )
+        if self._jconf is not None:
+            return None if not self._jconf.contains(key) else self._jconf.get(key)
+        return None if key not in self._conf else self._conf[key]
 
     def getAll(self):
         """Get all values as a list of key-value pairs."""
@@ -197,10 +192,7 @@ class SparkConf(object):
 
     def contains(self, key):
         """Does this configuration contain a given key?"""
-        if self._jconf is not None:
-            return self._jconf.contains(key)
-        else:
-            return key in self._conf
+        return key in self._conf if self._jconf is None else self._jconf.contains(key)
 
     def toDebugString(self):
         """
@@ -210,7 +202,7 @@ class SparkConf(object):
         if self._jconf is not None:
             return self._jconf.toDebugString()
         else:
-            return '\n'.join('%s=%s' % (k, v) for k, v in self._conf.items())
+            return '\n'.join(f'{k}={v}' for k, v in self._conf.items())
 
 
 def _test():

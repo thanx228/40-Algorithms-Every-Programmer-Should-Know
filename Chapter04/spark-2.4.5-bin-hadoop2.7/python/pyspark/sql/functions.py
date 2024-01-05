@@ -75,8 +75,9 @@ def _create_window_function(name, doc=''):
         sc = SparkContext._active_spark_context
         jc = getattr(sc._jvm.functions, name)()
         return Column(jc)
+
     _.__name__ = name
-    _.__doc__ = 'Window function: ' + doc
+    _.__doc__ = f'Window function: {doc}'
     return _
 
 _lit_doc = """
@@ -562,10 +563,7 @@ def rand(seed=None):
      Row(age=5, name=u'Bob', rand=1.403379671529166)]
     """
     sc = SparkContext._active_spark_context
-    if seed is not None:
-        jc = sc._jvm.functions.rand(seed)
-    else:
-        jc = sc._jvm.functions.rand()
+    jc = sc._jvm.functions.rand() if seed is None else sc._jvm.functions.rand(seed)
     return Column(jc)
 
 
@@ -1350,7 +1348,7 @@ def window(timeColumn, windowDuration, slideDuration=None, startTime=None):
     """
     def check_string_field(field, fieldName):
         if not field or type(field) is not str:
-            raise TypeError("%s should be provided as a string" % fieldName)
+            raise TypeError(f"{fieldName} should be provided as a string")
 
     sc = SparkContext._active_spark_context
     time_col = _to_java_column(timeColumn)
@@ -2672,16 +2670,14 @@ def udf(f=None, returnType=StringType()):
     |         8|      JOHN DOE|          22|
     +----------+--------------+------------+
     """
-    # decorator @udf, @udf(), @udf(dataType())
-    if f is None or isinstance(f, (str, DataType)):
-        # If DataType has been passed as a positional argument
-        # for decorator use it as a returnType
-        return_type = f or returnType
-        return functools.partial(_create_udf, returnType=return_type,
-                                 evalType=PythonEvalType.SQL_BATCHED_UDF)
-    else:
+    if f is not None and not isinstance(f, (str, DataType)):
         return _create_udf(f=f, returnType=returnType,
                            evalType=PythonEvalType.SQL_BATCHED_UDF)
+    # If DataType has been passed as a positional argument
+    # for decorator use it as a returnType
+    return_type = f or returnType
+    return functools.partial(_create_udf, returnType=return_type,
+                             evalType=PythonEvalType.SQL_BATCHED_UDF)
 
 
 @since(2.3)

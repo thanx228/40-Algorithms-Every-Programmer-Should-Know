@@ -67,7 +67,7 @@ def _launch_gateway(conf=None, insecure=False):
         command = [os.path.join(SPARK_HOME, script)]
         if conf:
             for k, v in conf.getAll():
-                command += ['--conf', '%s=%s' % (k, v)]
+                command += ['--conf', f'{k}={v}']
         submit_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
         if os.environ.get("SPARK_TESTING"):
             submit_args = ' '.join([
@@ -186,11 +186,11 @@ def local_connect_and_auth(port, auth_secret):
             return (sockfile, sock)
         except socket.error as e:
             emsg = _exception_message(e)
-            errors.append("tried to connect to %s, but an error occured: %s" % (sa, emsg))
+            errors.append(f"tried to connect to {sa}, but an error occured: {emsg}")
             sock.close()
             sock = None
     else:
-        raise Exception("could not open socket: %s" % errors)
+        raise Exception(f"could not open socket: {errors}")
 
 
 def ensure_callback_server_started(gw):

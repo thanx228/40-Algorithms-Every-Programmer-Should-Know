@@ -254,8 +254,7 @@ class DataFrame(object):
             try:
                 self._schema = _parse_datatype_json_string(self._jdf.schema().json())
             except AttributeError as e:
-                raise Exception(
-                    "Unable to parse datatype from schema. %s" % e)
+                raise Exception(f"Unable to parse datatype from schema. {e}")
         return self._schema
 
     @since(1.3)
@@ -382,13 +381,15 @@ class DataFrame(object):
             print(self._jdf.showString(n, int(truncate), vertical))
 
     def __repr__(self):
-        if not self._support_repr_html and self.sql_ctx._conf.isReplEagerEvalEnabled():
-            vertical = False
-            return self._jdf.showString(
-                self.sql_ctx._conf.replEagerEvalMaxNumRows(),
-                self.sql_ctx._conf.replEagerEvalTruncate(), vertical)
-        else:
-            return "DataFrame[%s]" % (", ".join("%s: %s" % c for c in self.dtypes))
+        if (
+            self._support_repr_html
+            or not self.sql_ctx._conf.isReplEagerEvalEnabled()
+        ):
+            return f'DataFrame[{", ".join("%s: %s" % c for c in self.dtypes)}]'
+        vertical = False
+        return self._jdf.showString(
+            self.sql_ctx._conf.replEagerEvalMaxNumRows(),
+            self.sql_ctx._conf.replEagerEvalTruncate(), vertical)
 
     def _repr_html_(self):
         """Returns a :class:`DataFrame` with html code when you enabled eager evaluation
@@ -397,30 +398,29 @@ class DataFrame(object):
         """
         if not self._support_repr_html:
             self._support_repr_html = True
-        if self.sql_ctx._conf.isReplEagerEvalEnabled():
-            max_num_rows = max(self.sql_ctx._conf.replEagerEvalMaxNumRows(), 0)
-            sock_info = self._jdf.getRowsToPython(
-                max_num_rows, self.sql_ctx._conf.replEagerEvalTruncate())
-            rows = list(_load_from_socket(sock_info, BatchedSerializer(PickleSerializer())))
-            head = rows[0]
-            row_data = rows[1:]
-            has_more_data = len(row_data) > max_num_rows
-            row_data = row_data[:max_num_rows]
-
-            html = "<table border='1'>\n"
-            # generate table head
-            html += "<tr><th>%s</th></tr>\n" % "</th><th>".join(map(lambda x: html_escape(x), head))
-            # generate table rows
-            for row in row_data:
-                html += "<tr><td>%s</td></tr>\n" % "</td><td>".join(
-                    map(lambda x: html_escape(x), row))
-            html += "</table>\n"
-            if has_more_data:
-                html += "only showing top %d %s\n" % (
-                    max_num_rows, "row" if max_num_rows == 1 else "rows")
-            return html
-        else:
+        if not self.sql_ctx._conf.isReplEagerEvalEnabled():
             return None
+        max_num_rows = max(self.sql_ctx._conf.replEagerEvalMaxNumRows(), 0)
+        sock_info = self._jdf.getRowsToPython(
+            max_num_rows, self.sql_ctx._conf.replEagerEvalTruncate())
+        rows = list(_load_from_socket(sock_info, BatchedSerializer(PickleSerializer())))
+        head = rows[0]
+        row_data = rows[1:]
+        has_more_data = len(row_data) > max_num_rows
+        row_data = row_data[:max_num_rows]
+
+        html = "<table border='1'>\n"
+        # generate table head
+        html += "<tr><th>%s</th></tr>\n" % "</th><th>".join(map(lambda x: html_escape(x), head))
+        # generate table rows
+        for row in row_data:
+            html += "<tr><td>%s</td></tr>\n" % "</td><td>".join(
+                map(lambda x: html_escape(x), row))
+        html += "</table>\n"
+        if has_more_data:
+            html += "only showing top %d %s\n" % (
+                max_num_rows, "row" if max_num_rows == 1 else "rows")
+        return html
 
     @since(2.1)
     def checkpoint(self, eager=True):
@@ -634,12 +634,13 @@ class DataFrame(object):
         StorageLevel(True, False, False, False, 2)
         """
         java_storage_level = self._jdf.storageLevel()
-        storage_level = StorageLevel(java_storage_level.useDisk(),
-                                     java_storage_level.useMemory(),
-                                     java_storage_level.useOffHeap(),
-                                     java_storage_level.deserialized(),
-                                     java_storage_level.replication())
-        return storage_level
+        return StorageLevel(
+            java_storage_level.useDisk(),
+            java_storage_level.useMemory(),
+            java_storage_level.useOffHeap(),
+            java_storage_level.deserialized(),
+            java_storage_level.replication(),
+        )
 
     @since(1.3)
     def unpersist(self, blocking=False):
@@ -728,7 +729,7 @@ class DataFrame(object):
         +---+-----+
         """
         if isinstance(numPartitions, int):
-            if len(cols) == 0:
+            if not cols:
                 return DataFrame(self._jdf.repartition(numPartitions), self.sql_ctx)
             else:
                 return DataFrame(
@@ -774,7 +775,7 @@ class DataFrame(object):
         +---+-----+
         """
         if isinstance(numPartitions, int):
-            if len(cols) == 0:
+            if not cols:
                 return ValueError("At least one partition-by expression must be specified.")
             else:
                 return DataFrame(
@@ -822,31 +823,26 @@ class DataFrame(object):
         10
         """
 
-        # For the cases below:
-        #   sample(True, 0.5 [, seed])
-        #   sample(True, fraction=0.5 [, seed])
-        #   sample(withReplacement=False, fraction=0.5 [, seed])
-        is_withReplacement_set = \
-            type(withReplacement) == bool and isinstance(fraction, float)
-
         # For the case below:
         #   sample(faction=0.5 [, seed])
         is_withReplacement_omitted_kwargs = \
-            withReplacement is None and isinstance(fraction, float)
+                withReplacement is None and isinstance(fraction, float)
 
         # For the case below:
         #   sample(0.5 [, seed])
         is_withReplacement_omitted_args = isinstance(withReplacement, float)
 
+        is_withReplacement_set = type(withReplacement) == bool and isinstance(
+            fraction, float
+        )
         if not (is_withReplacement_set
                 or is_withReplacement_omitted_kwargs
                 or is_withReplacement_omitted_args):
             argtypes = [
                 str(type(arg)) for arg in [withReplacement, fraction, seed] if arg is not None]
             raise TypeError(
-                "withReplacement (optional), fraction (required) and seed (optional)"
-                " should be a bool, float and number; however, "
-                "got [%s]." % ", ".join(argtypes))
+                f'withReplacement (optional), fraction (required) and seed (optional) should be a bool, float and number; however, got [{", ".join(argtypes)}].'
+            )
 
         if is_withReplacement_omitted_args:
             if fraction is not None:
@@ -912,7 +908,7 @@ class DataFrame(object):
         """
         for w in weights:
             if w < 0.0:
-                raise ValueError("Weights must be positive. Found weight value: %s" % w)
+                raise ValueError(f"Weights must be positive. Found weight value: {w}")
         seed = seed if seed is not None else random.randint(0, sys.maxsize)
         rdd_array = self._jdf.randomSplit(_to_list(self.sql_ctx._sc, weights), long(seed))
         return [DataFrame(rdd, self.sql_ctx) for rdd in rdd_array]
@@ -1133,7 +1129,9 @@ class DataFrame(object):
             jcols = [jc if asc else jc.desc()
                      for asc, jc in zip(ascending, jcols)]
         else:
-            raise TypeError("ascending can only be boolean or list, but got %s" % type(ascending))
+            raise TypeError(
+                f"ascending can only be boolean or list, but got {type(ascending)}"
+            )
         return self._jseq(jcols)
 
     @since("1.3.1")
@@ -1290,7 +1288,7 @@ class DataFrame(object):
             jc = self._jdf.apply(self.columns[item])
             return Column(jc)
         else:
-            raise TypeError("unexpected item type: %s" % type(item))
+            raise TypeError(f"unexpected item type: {type(item)}")
 
     @since(1.3)
     def __getattr__(self, name):
@@ -1301,7 +1299,8 @@ class DataFrame(object):
         """
         if name not in self.columns:
             raise AttributeError(
-                "'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
         jc = self._jdf.apply(name)
         return Column(jc)
 
@@ -1599,7 +1598,7 @@ class DataFrame(object):
         +---+------+-----+
         """
         if how is not None and how not in ['any', 'all']:
-            raise ValueError("how ('" + how + "') should be 'any' or 'all'")
+            raise ValueError(f"how ('{how}') should be 'any' or 'all'")
 
         if subset is None:
             subset = self.columns
@@ -1666,17 +1665,14 @@ class DataFrame(object):
         if not isinstance(value, bool) and isinstance(value, (int, long)):
             value = float(value)
 
-        if isinstance(value, dict):
+        if isinstance(value, dict) or subset is None:
             return DataFrame(self._jdf.na().fill(value), self.sql_ctx)
-        elif subset is None:
-            return DataFrame(self._jdf.na().fill(value), self.sql_ctx)
-        else:
-            if isinstance(subset, basestring):
-                subset = [subset]
-            elif not isinstance(subset, (list, tuple)):
-                raise ValueError("subset should be a list or tuple of column names")
+        if isinstance(subset, basestring):
+            subset = [subset]
+        elif not isinstance(subset, (list, tuple)):
+            raise ValueError("subset should be a list or tuple of column names")
 
-            return DataFrame(self._jdf.na().fill(value, self._jseq(subset)), self.sql_ctx)
+        return DataFrame(self._jdf.na().fill(value, self._jseq(subset)), self.sql_ctx)
 
     @since(1.4)
     def replace(self, to_replace, value=_NoValue, subset=None):
@@ -1909,7 +1905,7 @@ class DataFrame(object):
             raise ValueError("col2 should be a string.")
         if not method:
             method = "pearson"
-        if not method == "pearson":
+        if method != "pearson":
             raise ValueError("Currently only the calculation of the Pearson Correlation " +
                              "coefficient is supported.")
         return self._jdf.stat().corr(col1, col2, method)
@@ -2124,16 +2120,15 @@ class DataFrame(object):
             if use_arrow:
                 try:
                     from pyspark.sql.types import _check_dataframe_convert_date, \
-                        _check_dataframe_localize_timestamps
+                            _check_dataframe_localize_timestamps
                     import pyarrow
                     batches = self._collectAsArrow()
-                    if len(batches) > 0:
-                        table = pyarrow.Table.from_batches(batches)
-                        pdf = table.to_pandas()
-                        pdf = _check_dataframe_convert_date(pdf, self.schema)
-                        return _check_dataframe_localize_timestamps(pdf, timezone)
-                    else:
+                    if len(batches) <= 0:
                         return pd.DataFrame.from_records([], columns=self.columns)
+                    table = pyarrow.Table.from_batches(batches)
+                    pdf = table.to_pandas()
+                    pdf = _check_dataframe_convert_date(pdf, self.schema)
+                    return _check_dataframe_localize_timestamps(pdf, timezone)
                 except Exception as e:
                     # We might have to allow fallback here as well but multiple Spark jobs can
                     # be executed. So, simply fail in this case for now.
@@ -2156,24 +2151,24 @@ class DataFrame(object):
             # inferred by pandas as float column. Once we convert the column with NaN back
             # to integer type e.g., np.int16, we will hit exception. So we use the inferred
             # float type, not the corrected type from the schema in this case.
-            if pandas_type is not None and \
-                not(isinstance(field.dataType, IntegralType) and field.nullable and
-                    pdf[field.name].isnull().any()):
+            if pandas_type is not None and (
+                not isinstance(field.dataType, IntegralType)
+                or not field.nullable
+                or not pdf[field.name].isnull().any()
+            ):
                 dtype[field.name] = pandas_type
 
         for f, t in dtype.items():
             pdf[f] = pdf[f].astype(t, copy=False)
 
-        if timezone is None:
-            return pdf
-        else:
+        if timezone is not None:
             from pyspark.sql.types import _check_series_convert_timestamps_local_tz
             for field in self.schema:
                 # TODO: handle nested timestamps, such as ArrayType(TimestampType())?
                 if isinstance(field.dataType, TimestampType):
                     pdf[field.name] = \
-                        _check_series_convert_timestamps_local_tz(pdf[field.name], timezone)
-            return pdf
+                            _check_series_convert_timestamps_local_tz(pdf[field.name], timezone)
+        return pdf
 
     def _collectAsArrow(self):
         """

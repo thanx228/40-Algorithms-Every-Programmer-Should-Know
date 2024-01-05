@@ -22,6 +22,7 @@ Run with:
 
 This example requires NumPy (http://www.numpy.org/).
 """
+
 from __future__ import print_function
 
 # $example on$
@@ -52,7 +53,7 @@ if __name__ == "__main__":
     evaluator = ClusteringEvaluator()
 
     silhouette = evaluator.evaluate(predictions)
-    print("Silhouette with squared euclidean distance = " + str(silhouette))
+    print(f"Silhouette with squared euclidean distance = {str(silhouette)}")
 
     # Shows the result.
     centers = model.clusterCenters()

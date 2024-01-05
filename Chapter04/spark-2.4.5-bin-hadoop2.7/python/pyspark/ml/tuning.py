@@ -283,7 +283,7 @@ class CrossValidator(Estimator, ValidatorParams, HasParallelism, HasCollectSubMo
         nFolds = self.getOrDefault(self.numFolds)
         seed = self.getOrDefault(self.seed)
         h = 1.0 / nFolds
-        randCol = self.uid + "_rand"
+        randCol = f"{self.uid}_rand"
         df = dataset.select("*", rand(seed).alias(randCol))
         metrics = [0.0] * numModels
 
@@ -291,7 +291,7 @@ class CrossValidator(Estimator, ValidatorParams, HasParallelism, HasCollectSubMo
         subModels = None
         collectSubModelsParam = self.getCollectSubModels()
         if collectSubModelsParam:
-            subModels = [[None for j in range(numModels)] for i in range(nFolds)]
+            subModels = [[None for _ in range(numModels)] for _ in range(nFolds)]
 
         for i in range(nFolds):
             validateLB = i * h
@@ -309,10 +309,7 @@ class CrossValidator(Estimator, ValidatorParams, HasParallelism, HasCollectSubMo
             validation.unpersist()
             train.unpersist()
 
-        if eva.isLargerBetter():
-            bestIndex = np.argmax(metrics)
-        else:
-            bestIndex = np.argmin(metrics)
+        bestIndex = np.argmax(metrics) if eva.isLargerBetter() else np.argmin(metrics)
         bestModel = est.fit(dataset, epm[bestIndex])
         return self._copyValues(CrossValidatorModel(bestModel, metrics, subModels))
 
@@ -565,17 +562,14 @@ class TrainValidationSplit(Estimator, ValidatorParams, HasParallelism, HasCollec
         eva = self.getOrDefault(self.evaluator)
         tRatio = self.getOrDefault(self.trainRatio)
         seed = self.getOrDefault(self.seed)
-        randCol = self.uid + "_rand"
+        randCol = f"{self.uid}_rand"
         df = dataset.select("*", rand(seed).alias(randCol))
         condition = (df[randCol] >= tRatio)
         validation = df.filter(condition).cache()
         train = df.filter(~condition).cache()
 
-        subModels = None
         collectSubModelsParam = self.getCollectSubModels()
-        if collectSubModelsParam:
-            subModels = [None for i in range(numModels)]
-
+        subModels = [None for _ in range(numModels)] if collectSubModelsParam else None
         tasks = _parallelFitTasks(est, train, eva, validation, epm, collectSubModelsParam)
         pool = ThreadPool(processes=min(self.getParallelism(), numModels))
         metrics = [None] * numModels
@@ -587,10 +581,7 @@ class TrainValidationSplit(Estimator, ValidatorParams, HasParallelism, HasCollec
         train.unpersist()
         validation.unpersist()
 
-        if eva.isLargerBetter():
-            bestIndex = np.argmax(metrics)
-        else:
-            bestIndex = np.argmin(metrics)
+        bestIndex = np.argmax(metrics) if eva.isLargerBetter() else np.argmin(metrics)
         bestModel = est.fit(dataset, epm[bestIndex])
         return self._copyValues(TrainValidationSplitModel(bestModel, metrics, subModels))
 

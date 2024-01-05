@@ -65,8 +65,7 @@ class TransformFunction(object):
             rdds = [self.rdd_wrap_func(jrdd, self.ctx, ser) if jrdd else None
                     for jrdd, ser in zip(jrdds, sers)]
             t = datetime.fromtimestamp(milliseconds / 1000.0)
-            r = self.func(t, *rdds)
-            if r:
+            if r := self.func(t, *rdds):
                 # Here, we work around to ensure `_jrdd` is `JavaRDD` by wrapping it by `map`.
                 # org.apache.spark.streaming.api.python.PythonTransformFunction requires to return
                 # `JavaRDD`; however, this could be `JavaPairRDD` by some APIs, for example, `zip`.
@@ -82,7 +81,7 @@ class TransformFunction(object):
         return self.failure
 
     def __repr__(self):
-        return "TransformFunction(%s)" % self.func
+        return f"TransformFunction({self.func})"
 
     class Java:
         implements = ['org.apache.spark.streaming.api.python.PythonTransformFunction']
@@ -129,7 +128,7 @@ class TransformFunctionSerializer(object):
         return self.failure
 
     def __repr__(self):
-        return "TransformFunctionSerializer(%s)" % self.serializer
+        return f"TransformFunctionSerializer({self.serializer})"
 
     class Java:
         implements = ['org.apache.spark.streaming.api.python.PythonTransformFunctionSerializer']
@@ -148,9 +147,9 @@ def rddToFileName(prefix, suffix, timestamp):
         seconds = time.mktime(timestamp.timetuple())
         timestamp = int(seconds * 1000) + timestamp.microsecond // 1000
     if suffix is None:
-        return prefix + "-" + str(timestamp)
+        return f"{prefix}-{str(timestamp)}"
     else:
-        return prefix + "-" + str(timestamp) + "." + suffix
+        return f"{prefix}-{str(timestamp)}.{suffix}"
 
 
 if __name__ == "__main__":

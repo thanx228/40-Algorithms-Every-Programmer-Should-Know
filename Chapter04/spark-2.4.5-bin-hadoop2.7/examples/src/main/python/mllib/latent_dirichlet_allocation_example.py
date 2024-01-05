@@ -37,13 +37,14 @@ if __name__ == "__main__":
     ldaModel = LDA.train(corpus, k=3)
 
     # Output topics. Each is a distribution over words (matching word count vectors)
-    print("Learned topics (as distributions over vocab of " + str(ldaModel.vocabSize())
-          + " words):")
+    print(
+        f"Learned topics (as distributions over vocab of {str(ldaModel.vocabSize())} words):"
+    )
     topics = ldaModel.topicsMatrix()
     for topic in range(3):
-        print("Topic " + str(topic) + ":")
+        print(f"Topic {str(topic)}:")
         for word in range(0, ldaModel.vocabSize()):
-            print(" " + str(topics[word][topic]))
+            print(f" {str(topics[word][topic])}")
 
     # Save and load model
     ldaModel.save(sc, "target/org/apache/spark/PythonLatentDirichletAllocationExample/LDAModel")

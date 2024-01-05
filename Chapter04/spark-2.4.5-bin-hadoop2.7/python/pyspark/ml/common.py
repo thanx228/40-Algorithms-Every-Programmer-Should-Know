@@ -79,9 +79,7 @@ def _py2java(sc, obj):
         obj = [_py2java(sc, x) for x in obj]
     elif isinstance(obj, JavaObject):
         pass
-    elif isinstance(obj, (int, long, float, bool, bytes, unicode)):
-        pass
-    else:
+    elif not isinstance(obj, (int, long, float, bool, bytes, unicode)):
         data = bytearray(PickleSerializer().dumps(obj))
         obj = sc._jvm.org.apache.spark.ml.python.MLSerDe.loads(data)
     return obj

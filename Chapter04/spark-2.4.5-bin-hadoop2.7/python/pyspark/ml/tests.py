@@ -152,8 +152,7 @@ class MockUnaryTransformer(UnaryTransformer, DefaultParamsReadable, DefaultParam
 
     def validateInputType(self, inputType):
         if inputType != DoubleType():
-            raise TypeError("Bad input type: {}. ".format(inputType) +
-                            "Requires Double.")
+            raise TypeError(f"Bad input type: {inputType}. Requires Double.")
 
 
 class MockEstimator(Estimator, HasFake):
@@ -251,13 +250,13 @@ class ParamTypeConversionTests(PySparkTestCase):
                         pyarray.array('d', [1.0, 2.0])]:
             vs = VectorSlicer(indices=indices)
             self.assertListEqual(vs.getIndices(), [1, 2])
-            self.assertTrue(all([type(v) == int for v in vs.getIndices()]))
+            self.assertTrue(all(type(v) == int for v in vs.getIndices()))
         self.assertRaises(TypeError, lambda: VectorSlicer(indices=["a", "b"]))
 
     def test_list_float(self):
         b = Bucketizer(splits=[1, 4])
         self.assertEqual(b.getSplits(), [1.0, 4.0])
-        self.assertTrue(all([type(v) == float for v in b.getSplits()]))
+        self.assertTrue(all(type(v) == float for v in b.getSplits()))
         self.assertRaises(TypeError, lambda: Bucketizer(splits=["a", 1.0]))
 
     def test_list_string(self):
@@ -392,7 +391,7 @@ class ParamTests(SparkSessionTestCase):
 
     def test_hasparam(self):
         testParams = TestParams()
-        self.assertTrue(all([testParams.hasParam(p.name) for p in testParams.params]))
+        self.assertTrue(all(testParams.hasParam(p.name) for p in testParams.params))
         self.assertFalse(testParams.hasParam("notAParameter"))
         self.assertTrue(testParams.hasParam(u"maxIter"))
 
@@ -402,11 +401,7 @@ class ParamTests(SparkSessionTestCase):
         self.assertEqual(testParams._resolveParam("maxIter"), testParams.maxIter)
 
         self.assertEqual(testParams._resolveParam(u"maxIter"), testParams.maxIter)
-        if sys.version_info[0] >= 3:
-            # In Python 3, it is allowed to get/set attributes with non-ascii characters.
-            e_cls = AttributeError
-        else:
-            e_cls = UnicodeEncodeError
+        e_cls = AttributeError if sys.version_info[0] >= 3 else UnicodeEncodeError
         self.assertRaises(e_cls, lambda: testParams._resolveParam(u"아"))
 
     def test_params(self):
@@ -495,10 +490,9 @@ class ParamTests(SparkSessionTestCase):
         for k, v in extra.items():
             self.assertTrue(tp_copy.isDefined(k))
             self.assertEqual(tp_copy.getOrDefault(k), v)
-        copied_no_extra = {}
-        for k, v in tp_copy._paramMap.items():
-            if k not in extra:
-                copied_no_extra[k] = v
+        copied_no_extra = {
+            k: v for k, v in tp_copy._paramMap.items() if k not in extra
+        }
         self.assertEqual(tp._paramMap, copied_no_extra)
         self.assertEqual(tp._defaultParamMap, tp_copy._defaultParamMap)
 
@@ -541,7 +535,7 @@ class ParamTests(SparkSessionTestCase):
           - default param value from Java matches value in Python
           - optionally check if all params from Java also exist in Python
         """
-        py_stage_str = "%s %s" % (type(py_stage), py_stage)
+        py_stage_str = f"{type(py_stage)} {py_stage}"
         if not hasattr(py_stage, "_to_java"):
             return
         java_stage = py_stage._to_java()
@@ -561,9 +555,11 @@ class ParamTests(SparkSessionTestCase):
             java_param = java_stage.getParam(p.name)
             py_has_default = py_stage.hasDefault(p)
             java_has_default = java_stage.hasDefault(java_param)
-            test_self.assertEqual(py_has_default, java_has_default,
-                                  "Default value mismatch of param %s for Params %s"
-                                  % (p.name, str(py_stage)))
+            test_self.assertEqual(
+                py_has_default,
+                java_has_default,
+                f"Default value mismatch of param {p.name} for Params {str(py_stage)}",
+            )
             if py_has_default:
                 if p.name == "seed":
                     continue  # Random seeds between Spark and PySpark are different
@@ -576,9 +572,10 @@ class ParamTests(SparkSessionTestCase):
                     java_default = "NaN"
                     py_default = "NaN" if np.isnan(py_default) else "not NaN"
                 test_self.assertEqual(
-                    java_default, py_default,
-                    "Java default %s != python default %s of param %s for Params %s"
-                    % (str(java_default), str(py_default), p.name, str(py_stage)))
+                    java_default,
+                    py_default,
+                    f"Java default {str(java_default)} != python default {str(py_default)} of param {p.name} for Params {str(py_stage)}",
+                )
 
 
 class EvaluatorTests(SparkSessionTestCase):
@@ -613,11 +610,11 @@ class FeatureTests(SparkSessionTestCase):
     def test_binarizer(self):
         b0 = Binarizer()
         self.assertListEqual(b0.params, [b0.inputCol, b0.outputCol, b0.threshold])
-        self.assertTrue(all([~b0.isSet(p) for p in b0.params]))
+        self.assertTrue(all(~b0.isSet(p) for p in b0.params))
         self.assertTrue(b0.hasDefault(b0.threshold))
         self.assertEqual(b0.getThreshold(), 0.0)
         b0.setParams(inputCol="input", outputCol="output").setThreshold(1.0)
-        self.assertTrue(all([b0.isSet(p) for p in b0.params]))
+        self.assertTrue(all(b0.isSet(p) for p in b0.params))
         self.assertEqual(b0.getThreshold(), 1.0)
         self.assertEqual(b0.getInputCol(), "input")
         self.assertEqual(b0.getOutputCol(), "output")
@@ -992,7 +989,7 @@ class CrossValidatorTests(SparkSessionTestCase):
         cvModel = cv.fit(dataset)
         lrModel = cvModel.bestModel
 
-        cvModelPath = temp_path + "/cvModel"
+        cvModelPath = f"{temp_path}/cvModel"
         lrModel.save(cvModelPath)
         loadedLrModel = LogisticRegressionModel.load(cvModelPath)
         self.assertEqual(loadedLrModel.uid, lrModel.uid)
@@ -1015,7 +1012,7 @@ class CrossValidatorTests(SparkSessionTestCase):
         # test save/load of CrossValidator
         cv = CrossValidator(estimator=lr, estimatorParamMaps=grid, evaluator=evaluator)
         cvModel = cv.fit(dataset)
-        cvPath = temp_path + "/cv"
+        cvPath = f"{temp_path}/cv"
         cv.save(cvPath)
         loadedCV = CrossValidator.load(cvPath)
         self.assertEqual(loadedCV.getEstimator().uid, cv.getEstimator().uid)
@@ -1023,7 +1020,7 @@ class CrossValidatorTests(SparkSessionTestCase):
         self.assertEqual(loadedCV.getEstimatorParamMaps(), cv.getEstimatorParamMaps())
 
         # test save/load of CrossValidatorModel
-        cvModelPath = temp_path + "/cvModel"
+        cvModelPath = f"{temp_path}/cvModel"
         cvModel.save(cvModelPath)
         loadedModel = CrossValidatorModel.load(cvModelPath)
         self.assertEqual(loadedModel.bestModel.uid, cvModel.bestModel.uid)
@@ -1076,15 +1073,15 @@ class CrossValidatorTests(SparkSessionTestCase):
         checkSubModels(cvModel.subModels)
 
         # Test the default value for option "persistSubModel" to be "true"
-        testSubPath = temp_path + "/testCrossValidatorSubModels"
-        savingPathWithSubModels = testSubPath + "cvModel3"
+        testSubPath = f"{temp_path}/testCrossValidatorSubModels"
+        savingPathWithSubModels = f"{testSubPath}cvModel3"
         cvModel.save(savingPathWithSubModels)
         cvModel3 = CrossValidatorModel.load(savingPathWithSubModels)
         checkSubModels(cvModel3.subModels)
         cvModel4 = cvModel3.copy()
         checkSubModels(cvModel4.subModels)
 
-        savingPathWithoutSubModels = testSubPath + "cvModel2"
+        savingPathWithoutSubModels = f"{testSubPath}cvModel2"
         cvModel.write().option("persistSubModels", "false").save(savingPathWithoutSubModels)
         cvModel2 = CrossValidatorModel.load(savingPathWithoutSubModels)
         self.assertEqual(cvModel2.subModels, None)
@@ -1112,7 +1109,7 @@ class CrossValidatorTests(SparkSessionTestCase):
         # test save/load of CrossValidator
         cv = CrossValidator(estimator=ova, estimatorParamMaps=grid, evaluator=evaluator)
         cvModel = cv.fit(dataset)
-        cvPath = temp_path + "/cv"
+        cvPath = f"{temp_path}/cv"
         cv.save(cvPath)
         loadedCV = CrossValidator.load(cvPath)
         self.assertEqual(loadedCV.getEstimator().uid, cv.getEstimator().uid)
@@ -1128,7 +1125,7 @@ class CrossValidatorTests(SparkSessionTestCase):
                     self.assertEqual(param[p], originalParamMap[i][p])
 
         # test save/load of CrossValidatorModel
-        cvModelPath = temp_path + "/cvModel"
+        cvModelPath = f"{temp_path}/cvModel"
         cvModel.save(cvModelPath)
         loadedModel = CrossValidatorModel.load(cvModelPath)
         self.assertEqual(loadedModel.bestModel.uid, cvModel.bestModel.uid)
@@ -1208,7 +1205,7 @@ class TrainValidationSplitTests(SparkSessionTestCase):
         tvsModel = tvs.fit(dataset)
         lrModel = tvsModel.bestModel
 
-        tvsModelPath = temp_path + "/tvsModel"
+        tvsModelPath = f"{temp_path}/tvsModel"
         lrModel.save(tvsModelPath)
         loadedLrModel = LogisticRegressionModel.load(tvsModelPath)
         self.assertEqual(loadedLrModel.uid, lrModel.uid)
@@ -1231,14 +1228,14 @@ class TrainValidationSplitTests(SparkSessionTestCase):
         tvs = TrainValidationSplit(estimator=lr, estimatorParamMaps=grid, evaluator=evaluator)
         tvsModel = tvs.fit(dataset)
 
-        tvsPath = temp_path + "/tvs"
+        tvsPath = f"{temp_path}/tvs"
         tvs.save(tvsPath)
         loadedTvs = TrainValidationSplit.load(tvsPath)
         self.assertEqual(loadedTvs.getEstimator().uid, tvs.getEstimator().uid)
         self.assertEqual(loadedTvs.getEvaluator().uid, tvs.getEvaluator().uid)
         self.assertEqual(loadedTvs.getEstimatorParamMaps(), tvs.getEstimatorParamMaps())
 
-        tvsModelPath = temp_path + "/tvsModel"
+        tvsModelPath = f"{temp_path}/tvsModel"
         tvsModel.save(tvsModelPath)
         loadedModel = TrainValidationSplitModel.load(tvsModelPath)
         self.assertEqual(loadedModel.bestModel.uid, tvsModel.bestModel.uid)
@@ -1279,15 +1276,15 @@ class TrainValidationSplitTests(SparkSessionTestCase):
         self.assertEqual(len(tvsModel.subModels), len(grid))
 
         # Test the default value for option "persistSubModel" to be "true"
-        testSubPath = temp_path + "/testTrainValidationSplitSubModels"
-        savingPathWithSubModels = testSubPath + "cvModel3"
+        testSubPath = f"{temp_path}/testTrainValidationSplitSubModels"
+        savingPathWithSubModels = f"{testSubPath}cvModel3"
         tvsModel.save(savingPathWithSubModels)
         tvsModel3 = TrainValidationSplitModel.load(savingPathWithSubModels)
         self.assertEqual(len(tvsModel3.subModels), len(grid))
         tvsModel4 = tvsModel3.copy()
         self.assertEqual(len(tvsModel4.subModels), len(grid))
 
-        savingPathWithoutSubModels = testSubPath + "cvModel2"
+        savingPathWithoutSubModels = f"{testSubPath}cvModel2"
         tvsModel.write().option("persistSubModels", "false").save(savingPathWithoutSubModels)
         tvsModel2 = TrainValidationSplitModel.load(savingPathWithoutSubModels)
         self.assertEqual(tvsModel2.subModels, None)
@@ -1314,7 +1311,7 @@ class TrainValidationSplitTests(SparkSessionTestCase):
 
         tvs = TrainValidationSplit(estimator=ova, estimatorParamMaps=grid, evaluator=evaluator)
         tvsModel = tvs.fit(dataset)
-        tvsPath = temp_path + "/tvs"
+        tvsPath = f"{temp_path}/tvs"
         tvs.save(tvsPath)
         loadedTvs = TrainValidationSplit.load(tvsPath)
         self.assertEqual(loadedTvs.getEstimator().uid, tvs.getEstimator().uid)
@@ -1329,7 +1326,7 @@ class TrainValidationSplitTests(SparkSessionTestCase):
                 else:
                     self.assertEqual(param[p], originalParamMap[i][p])
 
-        tvsModelPath = temp_path + "/tvsModel"
+        tvsModelPath = f"{temp_path}/tvsModel"
         tvsModel.save(tvsModelPath)
         loadedModel = TrainValidationSplitModel.load(tvsModelPath)
         self.assertEqual(loadedModel.bestModel.uid, tvsModel.bestModel.uid)
@@ -1370,14 +1367,16 @@ class PersistenceTest(SparkSessionTestCase):
     def test_linear_regression(self):
         lr = LinearRegression(maxIter=1)
         path = tempfile.mkdtemp()
-        lr_path = path + "/lr"
+        lr_path = f"{path}/lr"
         lr.save(lr_path)
         lr2 = LinearRegression.load(lr_path)
         self.assertEqual(lr.uid, lr2.uid)
         self.assertEqual(type(lr.uid), type(lr2.uid))
-        self.assertEqual(lr2.uid, lr2.maxIter.parent,
-                         "Loaded LinearRegression instance uid (%s) did not match Param's uid (%s)"
-                         % (lr2.uid, lr2.maxIter.parent))
+        self.assertEqual(
+            lr2.uid,
+            lr2.maxIter.parent,
+            f"Loaded LinearRegression instance uid ({lr2.uid}) did not match Param's uid ({lr2.maxIter.parent})",
+        )
         self.assertEqual(lr._defaultParamMap[lr.maxIter], lr2._defaultParamMap[lr2.maxIter],
                          "Loaded LinearRegression instance default params did not match " +
                          "original defaults")
@@ -1396,7 +1395,7 @@ class PersistenceTest(SparkSessionTestCase):
         lr = LinearRegression(maxIter=1)
         model = lr.fit(df)
         path = tempfile.mkdtemp()
-        lr_path = path + "/lr-pmml"
+        lr_path = f"{path}/lr-pmml"
         model.write().format("pmml").save(lr_path)
         pmml_text_list = self.sc.textFile(lr_path).collect()
         pmml_text = "\n".join(pmml_text_list)
@@ -1406,7 +1405,7 @@ class PersistenceTest(SparkSessionTestCase):
     def test_logistic_regression(self):
         lr = LogisticRegression(maxIter=1)
         path = tempfile.mkdtemp()
-        lr_path = path + "/logreg"
+        lr_path = f"{path}/logreg"
         lr.save(lr_path)
         lr2 = LogisticRegression.load(lr_path)
         self.assertEqual(lr2.uid, lr2.maxIter.parent,
@@ -1454,7 +1453,7 @@ class PersistenceTest(SparkSessionTestCase):
         """
         self.assertEqual(m1.uid, m2.uid)
         self.assertEqual(type(m1), type(m2))
-        if isinstance(m1, JavaParams) or isinstance(m1, Transformer):
+        if isinstance(m1, (JavaParams, Transformer)):
             self.assertEqual(len(m1.params), len(m2.params))
             for p in m1.params:
                 self._compare_params(m1, m2, p)
@@ -1466,7 +1465,7 @@ class PersistenceTest(SparkSessionTestCase):
             self.assertEqual(len(m1.stages), len(m2.stages))
             for s1, s2 in zip(m1.stages, m2.stages):
                 self._compare_pipelines(s1, s2)
-        elif isinstance(m1, OneVsRest) or isinstance(m1, OneVsRestModel):
+        elif isinstance(m1, (OneVsRest, OneVsRestModel)):
             for p in m1.params:
                 self._compare_params(m1, m2, p)
             if isinstance(m1, OneVsRestModel):
@@ -1474,7 +1473,7 @@ class PersistenceTest(SparkSessionTestCase):
                 for x, y in zip(m1.models, m2.models):
                     self._compare_pipelines(x, y)
         else:
-            raise RuntimeError("_compare_pipelines does not yet support type: %s" % type(m1))
+            raise RuntimeError(f"_compare_pipelines does not yet support type: {type(m1)}")
 
     def test_pipeline_persistence(self):
         """
@@ -1489,12 +1488,12 @@ class PersistenceTest(SparkSessionTestCase):
             pl = Pipeline(stages=[tf, pca])
             model = pl.fit(df)
 
-            pipeline_path = temp_path + "/pipeline"
+            pipeline_path = f"{temp_path}/pipeline"
             pl.save(pipeline_path)
             loaded_pipeline = Pipeline.load(pipeline_path)
             self._compare_pipelines(pl, loaded_pipeline)
 
-            model_path = temp_path + "/pipeline-model"
+            model_path = f"{temp_path}/pipeline-model"
             model.save(model_path)
             loaded_model = PipelineModel.load(model_path)
             self._compare_pipelines(model, loaded_model)
@@ -1518,12 +1517,12 @@ class PersistenceTest(SparkSessionTestCase):
             pl = Pipeline(stages=[tf, p0])
             model = pl.fit(df)
 
-            pipeline_path = temp_path + "/pipeline"
+            pipeline_path = f"{temp_path}/pipeline"
             pl.save(pipeline_path)
             loaded_pipeline = Pipeline.load(pipeline_path)
             self._compare_pipelines(pl, loaded_pipeline)
 
-            model_path = temp_path + "/pipeline-model"
+            model_path = f"{temp_path}/pipeline-model"
             model.save(model_path)
             loaded_model = PipelineModel.load(model_path)
             self._compare_pipelines(model, loaded_model)
@@ -1542,17 +1541,17 @@ class PersistenceTest(SparkSessionTestCase):
         try:
             df = self.spark.range(0, 10).toDF('input')
             tf = MockUnaryTransformer(shiftVal=2)\
-                .setInputCol("input").setOutputCol("shiftedInput")
+                    .setInputCol("input").setOutputCol("shiftedInput")
             tf2 = Binarizer(threshold=6, inputCol="shiftedInput", outputCol="binarized")
             pl = Pipeline(stages=[tf, tf2])
             model = pl.fit(df)
 
-            pipeline_path = temp_path + "/pipeline"
+            pipeline_path = f"{temp_path}/pipeline"
             pl.save(pipeline_path)
             loaded_pipeline = Pipeline.load(pipeline_path)
             self._compare_pipelines(pl, loaded_pipeline)
 
-            model_path = temp_path + "/pipeline-model"
+            model_path = f"{temp_path}/pipeline-model"
             model.save(model_path)
             loaded_model = PipelineModel.load(model_path)
             self._compare_pipelines(model, loaded_model)
@@ -1571,11 +1570,11 @@ class PersistenceTest(SparkSessionTestCase):
         lr = LogisticRegression(maxIter=5, regParam=0.01)
         ovr = OneVsRest(classifier=lr)
         model = ovr.fit(df)
-        ovrPath = temp_path + "/ovr"
+        ovrPath = f"{temp_path}/ovr"
         ovr.save(ovrPath)
         loadedOvr = OneVsRest.load(ovrPath)
         self._compare_pipelines(ovr, loadedOvr)
-        modelPath = temp_path + "/ovrModel"
+        modelPath = f"{temp_path}/ovrModel"
         model.save(modelPath)
         loadedModel = OneVsRestModel.load(modelPath)
         self._compare_pipelines(model, loadedModel)
@@ -1583,7 +1582,7 @@ class PersistenceTest(SparkSessionTestCase):
     def test_decisiontree_classifier(self):
         dt = DecisionTreeClassifier(maxDepth=1)
         path = tempfile.mkdtemp()
-        dtc_path = path + "/dtc"
+        dtc_path = f"{path}/dtc"
         dt.save(dtc_path)
         dt2 = DecisionTreeClassifier.load(dtc_path)
         self.assertEqual(dt2.uid, dt2.maxDepth.parent,
@@ -1601,7 +1600,7 @@ class PersistenceTest(SparkSessionTestCase):
     def test_decisiontree_regressor(self):
         dt = DecisionTreeRegressor(maxDepth=1)
         path = tempfile.mkdtemp()
-        dtr_path = path + "/dtr"
+        dtr_path = f"{path}/dtr"
         dt.save(dtr_path)
         dt2 = DecisionTreeClassifier.load(dtr_path)
         self.assertEqual(dt2.uid, dt2.maxDepth.parent,
@@ -1624,7 +1623,7 @@ class PersistenceTest(SparkSessionTestCase):
         lr.setThreshold(.75)
         writer = DefaultParamsWriter(lr)
 
-        savePath = temp_path + "/lr"
+        savePath = f"{temp_path}/lr"
         writer.save(savePath)
 
         reader = DefaultParamsReadable.read()
@@ -1714,9 +1713,9 @@ class LDATest(SparkSessionTestCase):
         self.assertFalse(localModel.isDistributed())
         # Define paths
         path = tempfile.mkdtemp()
-        lda_path = path + "/lda"
-        dist_model_path = path + "/distLDAModel"
-        local_model_path = path + "/localLDAModel"
+        lda_path = f"{path}/lda"
+        dist_model_path = f"{path}/distLDAModel"
+        local_model_path = f"{path}/localLDAModel"
         # Test LDA
         lda.save(lda_path)
         lda2 = LDA.load(lda_path)
@@ -2030,8 +2029,12 @@ class HashingTFTest(SparkSessionTestCase):
         features = output.select("features").first().features.toArray()
         expected = Vectors.dense([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).toArray()
         for i in range(0, n):
-            self.assertAlmostEqual(features[i], expected[i], 14, "Error at " + str(i) +
-                                   ": expected " + str(expected[i]) + ", got " + str(features[i]))
+            self.assertAlmostEqual(
+                features[i],
+                expected[i],
+                14,
+                f"Error at {str(i)}: expected {str(expected[i])}, got {str(features[i])}",
+            )
 
 
 class GeneralizedLinearRegressionTest(SparkSessionTestCase):
@@ -2705,7 +2708,7 @@ class ChiSquareTestTests(SparkSessionTestCase):
         # This line is hitting the collect bug described in #17218, commented for now.
         # pValues = res.select("degreesOfFreedom").collect())
         self.assertIsInstance(res, DataFrame)
-        fieldNames = set(field.name for field in res.schema.fields)
+        fieldNames = {field.name for field in res.schema.fields}
         expectedFields = ["pValues", "degreesOfFreedom", "statistics"]
         self.assertTrue(all(field in fieldNames for field in expectedFields))
 

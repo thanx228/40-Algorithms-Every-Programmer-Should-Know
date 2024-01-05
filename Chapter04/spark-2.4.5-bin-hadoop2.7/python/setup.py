@@ -116,7 +116,7 @@ try:
         pass
     copyfile("pyspark/shell.py", "pyspark/python/pyspark/shell.py")
 
-    if (in_spark):
+    if in_spark:
         # Construct the symlink farm - this is necessary since we can't refer to the path above the
         # package root and we need to copy the jars and scripts which are up above the python root.
         if _supports_symlinks():
@@ -132,11 +132,9 @@ try:
             copytree(EXAMPLES_PATH, EXAMPLES_TARGET)
             copytree(DATA_PATH, DATA_TARGET)
             copytree(LICENSES_PATH, LICENSES_TARGET)
-    else:
-        # If we are not inside of SPARK_HOME verify we have the required symlink farm
-        if not os.path.exists(JARS_TARGET):
-            print("To build packaging must be in the python directory under the SPARK_HOME.",
-                  file=sys.stderr)
+    elif not os.path.exists(JARS_TARGET):
+        print("To build packaging must be in the python directory under the SPARK_HOME.",
+              file=sys.stderr)
 
     if not os.path.isdir(SCRIPTS_TARGET):
         print(incorrect_invocation_message, file=sys.stderr)
@@ -167,22 +165,24 @@ try:
         author='Spark Developers',
         author_email='dev@spark.apache.org',
         url='https://github.com/apache/spark/tree/master/python',
-        packages=['pyspark',
-                  'pyspark.mllib',
-                  'pyspark.mllib.linalg',
-                  'pyspark.mllib.stat',
-                  'pyspark.ml',
-                  'pyspark.ml.linalg',
-                  'pyspark.ml.param',
-                  'pyspark.sql',
-                  'pyspark.streaming',
-                  'pyspark.bin',
-                  'pyspark.jars',
-                  'pyspark.python.pyspark',
-                  'pyspark.python.lib',
-                  'pyspark.data',
-                  'pyspark.licenses',
-                  'pyspark.examples.src.main.python'],
+        packages=[
+            'pyspark',
+            'pyspark.mllib',
+            'pyspark.mllib.linalg',
+            'pyspark.mllib.stat',
+            'pyspark.ml',
+            'pyspark.ml.linalg',
+            'pyspark.ml.param',
+            'pyspark.sql',
+            'pyspark.streaming',
+            'pyspark.bin',
+            'pyspark.jars',
+            'pyspark.python.pyspark',
+            'pyspark.python.lib',
+            'pyspark.data',
+            'pyspark.licenses',
+            'pyspark.examples.src.main.python',
+        ],
         include_package_data=True,
         package_dir={
             'pyspark.jars': 'deps/jars',
@@ -198,7 +198,8 @@ try:
             'pyspark.python.lib': ['*.zip'],
             'pyspark.data': ['*.txt', '*.data'],
             'pyspark.licenses': ['*.txt'],
-            'pyspark.examples.src.main.python': ['*.py', '*/*.py']},
+            'pyspark.examples.src.main.python': ['*.py', '*/*.py'],
+        },
         scripts=scripts,
         license='http://www.apache.org/licenses/LICENSE-2.0',
         install_requires=['py4j==0.10.7'],
@@ -207,9 +208,9 @@ try:
             'ml': ['numpy>=1.7'],
             'mllib': ['numpy>=1.7'],
             'sql': [
-                'pandas>=%s' % _minimum_pandas_version,
-                'pyarrow>=%s' % _minimum_pyarrow_version,
-            ]
+                f'pandas>={_minimum_pandas_version}',
+                f'pyarrow>={_minimum_pyarrow_version}',
+            ],
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',
@@ -221,7 +222,8 @@ try:
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: Implementation :: CPython',
-            'Programming Language :: Python :: Implementation :: PyPy']
+            'Programming Language :: Python :: Implementation :: PyPy',
+        ],
     )
 finally:
     # We only cleanup the symlink farm if we were in Spark, otherwise we are installing rather than

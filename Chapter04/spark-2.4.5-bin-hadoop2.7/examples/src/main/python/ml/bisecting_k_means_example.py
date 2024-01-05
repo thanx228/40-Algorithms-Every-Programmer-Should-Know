@@ -20,6 +20,7 @@ An example demonstrating bisecting k-means clustering.
 Run with:
   bin/spark-submit examples/src/main/python/ml/bisecting_k_means_example.py
 """
+
 from __future__ import print_function
 
 # $example on$
@@ -43,7 +44,7 @@ if __name__ == "__main__":
 
     # Evaluate clustering.
     cost = model.computeCost(dataset)
-    print("Within Set Sum of Squared Errors = " + str(cost))
+    print(f"Within Set Sum of Squared Errors = {str(cost)}")
 
     # Shows the result.
     print("Cluster Centers: ")
