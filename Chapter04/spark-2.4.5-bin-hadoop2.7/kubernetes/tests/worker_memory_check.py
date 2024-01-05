@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     def f(x):
         rLimit = resource.getrlimit(resource.RLIMIT_AS)
-        print("RLimit is " + str(rLimit))
+        print(f"RLimit is {str(rLimit)}")
         return rLimit
     resourceValue = sc.parallelize([1]).map(f).collect()[0][0]
     print("Resource Value is " + str(resourceValue))

@@ -85,12 +85,13 @@ class UserDefinedFunction(object):
 
         if not isinstance(returnType, (DataType, str)):
             raise TypeError(
-                "Invalid returnType: returnType should be DataType or str "
-                "but is {}".format(returnType))
+                f"Invalid returnType: returnType should be DataType or str but is {returnType}"
+            )
 
         if not isinstance(evalType, int):
             raise TypeError(
-                "Invalid evalType: evalType should be an int but is {}".format(evalType))
+                f"Invalid evalType: evalType should be an int but is {evalType}"
+            )
 
         self.func = func
         self._returnType = returnType
@@ -105,8 +106,6 @@ class UserDefinedFunction(object):
 
     @property
     def returnType(self):
-        # This makes sure this is called after SparkContext is initialized.
-        # ``_parse_datatype_string`` accesses to JVM for parsing a DDL formatted string.
         if self._returnType_placeholder is None:
             if isinstance(self._returnType, DataType):
                 self._returnType_placeholder = self._returnType
@@ -121,16 +120,15 @@ class UserDefinedFunction(object):
                     "Invalid returnType with scalar Pandas UDFs: %s is "
                     "not supported" % str(self._returnType_placeholder))
         elif self.evalType == PythonEvalType.SQL_GROUPED_MAP_PANDAS_UDF:
-            if isinstance(self._returnType_placeholder, StructType):
-                try:
-                    to_arrow_schema(self._returnType_placeholder)
-                except TypeError:
-                    raise NotImplementedError(
-                        "Invalid returnType with grouped map Pandas UDFs: "
-                        "%s is not supported" % str(self._returnType_placeholder))
-            else:
+            if not isinstance(self._returnType_placeholder, StructType):
                 raise TypeError("Invalid returnType for grouped map Pandas "
                                 "UDFs: returnType must be a StructType.")
+            try:
+                to_arrow_schema(self._returnType_placeholder)
+            except TypeError:
+                raise NotImplementedError(
+                    f"Invalid returnType with grouped map Pandas UDFs: {str(self._returnType_placeholder)} is not supported"
+                )
         elif self.evalType == PythonEvalType.SQL_GROUPED_AGG_PANDAS_UDF:
             try:
                 to_arrow_type(self._returnType_placeholder)
@@ -159,9 +157,9 @@ class UserDefinedFunction(object):
 
         wrapped_func = _wrap_function(sc, self.func, self.returnType)
         jdt = spark._jsparkSession.parseDataType(self.returnType.json())
-        judf = sc._jvm.org.apache.spark.sql.execution.python.UserDefinedPythonFunction(
-            self._name, wrapped_func, jdt, self.evalType, self.deterministic)
-        return judf
+        return sc._jvm.org.apache.spark.sql.execution.python.UserDefinedPythonFunction(
+            self._name, wrapped_func, jdt, self.evalType, self.deterministic
+        )
 
     def __call__(self, *cols):
         judf = self._judf
@@ -182,7 +180,10 @@ class UserDefinedFunction(object):
         # function. So, we take out these attribute names from the default names to set and
         # then manually assign it after being wrapped.
         assignments = tuple(
-            a for a in functools.WRAPPER_ASSIGNMENTS if a != '__name__' and a != '__module__')
+            a
+            for a in functools.WRAPPER_ASSIGNMENTS
+            if a not in ['__name__', '__module__']
+        )
 
         @functools.wraps(self.func, assigned=assignments)
         def wrapper(*args):

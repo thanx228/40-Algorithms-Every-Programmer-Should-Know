@@ -49,10 +49,9 @@ class RuntimeConfig(object):
         self._checkType(key, "key")
         if default is _NoValue:
             return self._jconf.get(key)
-        else:
-            if default is not None:
-                self._checkType(default, "default")
-            return self._jconf.get(key, default)
+        if default is not None:
+            self._checkType(default, "default")
+        return self._jconf.get(key, default)
 
     @ignore_unicode_prefix
     @since(2.0)
@@ -63,8 +62,9 @@ class RuntimeConfig(object):
     def _checkType(self, obj, identifier):
         """Assert that an object is of type str."""
         if not isinstance(obj, basestring):
-            raise TypeError("expected %s '%s' to be a string (was '%s')" %
-                            (identifier, obj, type(obj).__name__))
+            raise TypeError(
+                f"expected {identifier} '{obj}' to be a string (was '{type(obj).__name__}')"
+            )
 
     @ignore_unicode_prefix
     @since(2.4)

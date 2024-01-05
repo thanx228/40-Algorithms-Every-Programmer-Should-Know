@@ -1231,11 +1231,15 @@ class StreamingKMeansTest(MLLibStreamingTestCase):
         rng = random.RandomState(seed)
 
         # Generate centers.
-        centers = [rng.randn(d) for i in range(k)]
+        centers = [rng.randn(d) for _ in range(k)]
 
-        return centers, [[Vectors.dense(centers[j % k] + r * rng.randn(d))
-                          for j in range(numPoints)]
-                         for i in range(batches)]
+        return centers, [
+            [
+                Vectors.dense(centers[j % k] + r * rng.randn(d))
+                for j in range(numPoints)
+            ]
+            for _ in range(batches)
+        ]
 
     def test_trainOn_model(self):
         """Test the model on toy data with four clusters."""
@@ -1698,8 +1702,12 @@ class HashingTFTest(MLlibTestCase):
                                       hashingTF.indexOf("b"): 1.0,
                                       hashingTF.indexOf("c"): 1.0}).toArray()
         for i in range(0, n):
-            self.assertAlmostEqual(output[i], expected[i], 14, "Error at " + str(i) +
-                                   ": expected " + str(expected[i]) + ", got " + str(output[i]))
+            self.assertAlmostEqual(
+                output[i],
+                expected[i],
+                14,
+                f"Error at {str(i)}: expected {str(expected[i])}, got {str(output[i])}",
+            )
 
 
 class DimensionalityReductionTests(MLlibTestCase):

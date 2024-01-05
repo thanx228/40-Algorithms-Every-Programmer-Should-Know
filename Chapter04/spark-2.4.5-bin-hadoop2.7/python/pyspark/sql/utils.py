@@ -115,41 +115,41 @@ def toJArray(gateway, jtype, arr):
 def require_minimum_pandas_version():
     """ Raise ImportError if minimum version of Pandas is not installed
     """
-    # TODO(HyukjinKwon): Relocate and deduplicate the version specification.
-    minimum_pandas_version = "0.19.2"
-
     from distutils.version import LooseVersion
     try:
         import pandas
         have_pandas = True
     except ImportError:
         have_pandas = False
+    minimum_pandas_version = "0.19.2"
     if not have_pandas:
-        raise ImportError("Pandas >= %s must be installed; however, "
-                          "it was not found." % minimum_pandas_version)
+        raise ImportError(
+            f"Pandas >= {minimum_pandas_version} must be installed; however, it was not found."
+        )
     if LooseVersion(pandas.__version__) < LooseVersion(minimum_pandas_version):
-        raise ImportError("Pandas >= %s must be installed; however, "
-                          "your version was %s." % (minimum_pandas_version, pandas.__version__))
+        raise ImportError(
+            f"Pandas >= {minimum_pandas_version} must be installed; however, your version was {pandas.__version__}."
+        )
 
 
 def require_minimum_pyarrow_version():
     """ Raise ImportError if minimum version of pyarrow is not installed
     """
-    # TODO(HyukjinKwon): Relocate and deduplicate the version specification.
-    minimum_pyarrow_version = "0.8.0"
-
     from distutils.version import LooseVersion
     try:
         import pyarrow
         have_arrow = True
     except ImportError:
         have_arrow = False
+    minimum_pyarrow_version = "0.8.0"
     if not have_arrow:
-        raise ImportError("PyArrow >= %s must be installed; however, "
-                          "it was not found." % minimum_pyarrow_version)
+        raise ImportError(
+            f"PyArrow >= {minimum_pyarrow_version} must be installed; however, it was not found."
+        )
     if LooseVersion(pyarrow.__version__) < LooseVersion(minimum_pyarrow_version):
-        raise ImportError("PyArrow >= %s must be installed; however, "
-                          "your version was %s." % (minimum_pyarrow_version, pyarrow.__version__))
+        raise ImportError(
+            f"PyArrow >= {minimum_pyarrow_version} must be installed; however, your version was {pyarrow.__version__}."
+        )
 
 
 def require_test_compiled():
@@ -166,9 +166,10 @@ def require_test_compiled():
         spark_home, 'sql', 'core', 'target', '*', 'test-classes')
     paths = glob.glob(test_class_path)
 
-    if len(paths) == 0:
+    if not paths:
         raise RuntimeError(
-            "%s doesn't exist. Spark sql test classes are not compiled." % test_class_path)
+            f"{test_class_path} doesn't exist. Spark sql test classes are not compiled."
+        )
 
 
 class ForeachBatchFunction(object):

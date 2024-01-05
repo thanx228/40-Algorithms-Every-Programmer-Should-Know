@@ -119,7 +119,7 @@ class BroadcastFrameProtocolTest(unittest.TestCase):
                 byte = f.read(1)
                 idx = 0
                 while byte:
-                    self.assertEqual(data[idx], bytearray(byte)[0], msg="idx = " + str(idx))
+                    self.assertEqual(data[idx], bytearray(byte)[0], msg=f"idx = {str(idx)}")
                     byte = f.read(1)
                     idx += 1
         finally:

@@ -226,7 +226,7 @@ class SparkContext(object):
         sys.path.insert(1, root_dir)
 
         # Deploy any code dependencies specified in the constructor
-        self._python_includes = list()
+        self._python_includes = []
         for path in (pyFiles or []):
             self.addPyFile(path)
 
@@ -254,8 +254,8 @@ class SparkContext(object):
         # Create a temporary directory inside spark.local.dir:
         local_dir = self._jvm.org.apache.spark.util.Utils.getLocalDir(self._jsc.sc().conf())
         self._temp_dir = \
-            self._jvm.org.apache.spark.util.Utils.createTempDir(local_dir, "pyspark") \
-                .getAbsolutePath()
+                self._jvm.org.apache.spark.util.Utils.createTempDir(local_dir, "pyspark") \
+                    .getAbsolutePath()
 
         # profiling stats collected for each PythonRDD
         if self._conf.get("spark.python.profile", "false") == "true":
@@ -319,17 +319,14 @@ class SparkContext(object):
             if instance:
                 if (SparkContext._active_spark_context and
                         SparkContext._active_spark_context != instance):
-                    currentMaster = SparkContext._active_spark_context.master
                     currentAppName = SparkContext._active_spark_context.appName
                     callsite = SparkContext._active_spark_context._callsite
 
+                    currentMaster = SparkContext._active_spark_context.master
                     # Raise error if there is already a running Spark context
                     raise ValueError(
-                        "Cannot run multiple SparkContexts at once; "
-                        "existing SparkContext(app=%s, master=%s)"
-                        " created by %s at %s:%s "
-                        % (currentAppName, currentMaster,
-                            callsite.function, callsite.file, callsite.linenum))
+                        f"Cannot run multiple SparkContexts at once; existing SparkContext(app={currentAppName}, master={currentMaster}) created by {callsite.function} at {callsite.file}:{callsite.linenum} "
+                    )
                 else:
                     SparkContext._active_spark_context = instance
 
@@ -445,7 +442,6 @@ class SparkContext(object):
                     ' been killed or may also be in a zombie state.',
                     RuntimeWarning
                 )
-                pass
             finally:
                 self._jsc = None
         if getattr(self, "_accumulatorServer", None):
@@ -546,10 +542,7 @@ class SparkContext(object):
             chunked_out = ChunkedStream(sock_file, 8192)
             serializer.dump_stream(data, chunked_out)
             chunked_out.close()
-            # this call will block until the server has read all the data and processed it (or
-            # throws an exception)
-            r = server.getResult()
-            return r
+            return server.getResult()
         else:
             # without encryption, we serialize to a file, and we read the file in java and
             # parallelize from there.
@@ -881,7 +874,7 @@ class SparkContext(object):
             elif isinstance(value, complex):
                 accum_param = accumulators.COMPLEX_ACCUMULATOR_PARAM
             else:
-                raise TypeError("No default accumulator param for type %s" % type(value))
+                raise TypeError(f"No default accumulator param for type {type(value)}")
         SparkContext._next_accum_id += 1
         return Accumulator(SparkContext._next_accum_id - 1, value, accum_param)
 

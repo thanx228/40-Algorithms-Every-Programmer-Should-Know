@@ -143,8 +143,9 @@ class GaussianMixtureModel(JavaModel, JavaMLWritable, JavaMLReadable):
         if self.hasSummary:
             return GaussianMixtureSummary(self._call_java("summary"))
         else:
-            raise RuntimeError("No training summary available for this %s" %
-                               self.__class__.__name__)
+            raise RuntimeError(
+                f"No training summary available for this {self.__class__.__name__}"
+            )
 
 
 @inherit_doc
@@ -367,8 +368,9 @@ class KMeansModel(JavaModel, JavaMLWritable, JavaMLReadable):
         if self.hasSummary:
             return KMeansSummary(self._call_java("summary"))
         else:
-            raise RuntimeError("No training summary available for this %s" %
-                               self.__class__.__name__)
+            raise RuntimeError(
+                f"No training summary available for this {self.__class__.__name__}"
+            )
 
 
 @inherit_doc
@@ -561,8 +563,9 @@ class BisectingKMeansModel(JavaModel, JavaMLWritable, JavaMLReadable):
         if self.hasSummary:
             return BisectingKMeansSummary(self._call_java("summary"))
         else:
-            raise RuntimeError("No training summary available for this %s" %
-                               self.__class__.__name__)
+            raise RuntimeError(
+                f"No training summary available for this {self.__class__.__name__}"
+            )
 
 
 @inherit_doc

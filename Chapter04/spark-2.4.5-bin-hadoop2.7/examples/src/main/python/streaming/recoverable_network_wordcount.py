@@ -87,10 +87,10 @@ def createContext(host, port, outputPath):
             else:
                 True
 
-        counts = "Counts at time %s %s" % (time, rdd.filter(filterFunc).collect())
+        counts = f"Counts at time {time} {rdd.filter(filterFunc).collect()}"
         print(counts)
         print("Dropped %d word(s) totally" % droppedWordsCounter.value)
-        print("Appending to " + os.path.abspath(outputPath))
+        print(f"Appending to {os.path.abspath(outputPath)}")
         with open(outputPath, 'a') as f:
             f.write(counts + "\n")
 

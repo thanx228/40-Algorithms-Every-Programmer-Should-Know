@@ -397,7 +397,9 @@ class SparkSession(object):
             schema = struct
 
         elif not isinstance(schema, StructType):
-            raise TypeError("schema should be StructType or list or None, but got: %s" % schema)
+            raise TypeError(
+                f"schema should be StructType or list or None, but got: {schema}"
+            )
 
         # convert python objects to sql data
         rdd = rdd.map(schema.toInternal)
@@ -423,7 +425,9 @@ class SparkSession(object):
             schema = struct
 
         elif not isinstance(schema, StructType):
-            raise TypeError("schema should be StructType or list or None, but got: %s" % schema)
+            raise TypeError(
+                f"schema should be StructType or list or None, but got: {schema}"
+            )
 
         # convert python objects to sql data
         data = [schema.toInternal(row) for row in data]
@@ -504,7 +508,7 @@ class SparkSession(object):
         from pyspark.serializers import ArrowStreamSerializer, _create_batch
         from pyspark.sql.types import from_arrow_schema, to_arrow_type, TimestampType
         from pyspark.sql.utils import require_minimum_pandas_version, \
-            require_minimum_pyarrow_version
+                require_minimum_pyarrow_version
 
         require_minimum_pandas_version()
         require_minimum_pyarrow_version()
@@ -515,7 +519,7 @@ class SparkSession(object):
         if isinstance(schema, StructType):
             arrow_types = [to_arrow_type(f.dataType) for f in schema.fields]
         elif isinstance(schema, DataType):
-            raise ValueError("Single data type %s is not supported with Arrow" % str(schema))
+            raise ValueError(f"Single data type {str(schema)} is not supported with Arrow")
         else:
             # Any timestamps must be coerced to be compatible with Spark
             arrow_types = [to_arrow_type(TimestampType())
@@ -568,13 +572,15 @@ class SparkSession(object):
         try:
             # Try to access HiveConf, it will raise exception if Hive is not added
             conf = SparkConf()
-            if conf.get('spark.sql.catalogImplementation', 'hive').lower() == 'hive':
-                SparkContext._jvm.org.apache.hadoop.hive.conf.HiveConf()
-                return SparkSession.builder\
+            if (
+                conf.get('spark.sql.catalogImplementation', 'hive').lower()
+                != 'hive'
+            ):
+                return SparkSession.builder.getOrCreate()
+            SparkContext._jvm.org.apache.hadoop.hive.conf.HiveConf()
+            return SparkSession.builder\
                     .enableHiveSupport()\
                     .getOrCreate()
-            else:
-                return SparkSession.builder.getOrCreate()
         except (py4j.protocol.Py4JError, TypeError):
             if conf.get('spark.sql.catalogImplementation', '').lower() == 'hive':
                 warnings.warn("Fall back to non-hive support because failing to access HiveConf, "

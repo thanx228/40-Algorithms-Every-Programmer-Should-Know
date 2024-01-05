@@ -364,15 +364,14 @@ class LogisticRegression(JavaEstimator, HasFeaturesCol, HasLabelCol, HasPredicti
         Otherwise, returns :py:attr:`threshold` if set or its default value if unset.
         """
         self._checkThresholdConsistency()
-        if self.isSet(self.thresholds):
-            ts = self.getOrDefault(self.thresholds)
-            if len(ts) != 2:
-                raise ValueError("Logistic Regression getThreshold only applies to" +
-                                 " binary classification, but thresholds has length != 2." +
-                                 "  thresholds: " + ",".join(ts))
-            return 1.0/(1.0 + ts[0]/ts[1])
-        else:
+        if not self.isSet(self.thresholds):
             return self.getOrDefault(self.threshold)
+        ts = self.getOrDefault(self.thresholds)
+        if len(ts) != 2:
+            raise ValueError("Logistic Regression getThreshold only applies to" +
+                             " binary classification, but thresholds has length != 2." +
+                             "  thresholds: " + ",".join(ts))
+        return 1.0/(1.0 + ts[0]/ts[1])
 
     @since("1.5.0")
     def setThresholds(self, value):
@@ -393,11 +392,10 @@ class LogisticRegression(JavaEstimator, HasFeaturesCol, HasLabelCol, HasPredicti
         If neither are set, throw an error.
         """
         self._checkThresholdConsistency()
-        if not self.isSet(self.thresholds) and self.isSet(self.threshold):
-            t = self.getOrDefault(self.threshold)
-            return [1.0-t, t]
-        else:
+        if self.isSet(self.thresholds) or not self.isSet(self.threshold):
             return self.getOrDefault(self.thresholds)
+        t = self.getOrDefault(self.threshold)
+        return [1.0-t, t]
 
     def _checkThresholdConsistency(self):
         if self.isSet(self.threshold) and self.isSet(self.thresholds):
@@ -531,15 +529,16 @@ class LogisticRegressionModel(JavaModel, JavaClassificationModel, JavaMLWritable
         Gets summary (e.g. accuracy/precision/recall, objective history, total iterations) of model
         trained on the training set. An exception is thrown if `trainingSummary is None`.
         """
-        if self.hasSummary:
-            java_lrt_summary = self._call_java("summary")
-            if self.numClasses <= 2:
-                return BinaryLogisticRegressionTrainingSummary(java_lrt_summary)
-            else:
-                return LogisticRegressionTrainingSummary(java_lrt_summary)
-        else:
-            raise RuntimeError("No training summary available for this %s" %
-                               self.__class__.__name__)
+        if not self.hasSummary:
+            raise RuntimeError(
+                f"No training summary available for this {self.__class__.__name__}"
+            )
+        java_lrt_summary = self._call_java("summary")
+        return (
+            BinaryLogisticRegressionTrainingSummary(java_lrt_summary)
+            if self.numClasses <= 2
+            else LogisticRegressionTrainingSummary(java_lrt_summary)
+        )
 
     @property
     @since("2.0.0")
@@ -560,7 +559,7 @@ class LogisticRegressionModel(JavaModel, JavaClassificationModel, JavaMLWritable
           instance of :py:class:`pyspark.sql.DataFrame`
         """
         if not isinstance(dataset, DataFrame):
-            raise ValueError("dataset must be a DataFrame but got %s." % type(dataset))
+            raise ValueError(f"dataset must be a DataFrame but got {type(dataset)}.")
         java_blr_summary = self._call_java("evaluate", dataset)
         return BinaryLogisticRegressionSummary(java_blr_summary)
 
@@ -1798,10 +1797,11 @@ class OneVsRest(Estimator, OneVsRestParams, HasParallelism, JavaMLReadable, Java
         featuresCol = self.getFeaturesCol()
         predictionCol = self.getPredictionCol()
         classifier = self.getClassifier()
-        assert isinstance(classifier, HasRawPredictionCol),\
-            "Classifier %s doesn't extend from HasRawPredictionCol." % type(classifier)
+        assert isinstance(
+            classifier, HasRawPredictionCol
+        ), f"Classifier {type(classifier)} doesn't extend from HasRawPredictionCol."
 
-        numClasses = int(dataset.agg({labelCol: "max"}).head()["max("+labelCol+")"]) + 1
+        numClasses = int(dataset.agg({labelCol: "max"}).head()[f"max({labelCol})"]) + 1
 
         weightCol = None
         if (self.isDefined(self.weightCol) and self.getWeightCol()):
@@ -1822,7 +1822,7 @@ class OneVsRest(Estimator, OneVsRestParams, HasParallelism, JavaMLReadable, Java
             multiclassLabeled.persist(StorageLevel.MEMORY_AND_DISK)
 
         def trainSingleClass(index):
-            binaryLabelCol = "mc2b$" + str(index)
+            binaryLabelCol = f"mc2b${str(index)}"
             trainingDataset = multiclassLabeled.withColumn(
                 binaryLabelCol,
                 when(multiclassLabeled[labelCol] == float(index), 1.0).otherwise(0.0))
@@ -1966,7 +1966,7 @@ class OneVsRestModel(Model, OneVsRestParams, JavaMLReadable, JavaMLWritable):
         origCols = dataset.columns
 
         # add an accumulator column to store predictions of all the models
-        accColName = "mbc$acc" + str(uuid.uuid4())
+        accColName = f"mbc$acc{str(uuid.uuid4())}"
         initUDF = udf(lambda _: [], ArrayType(DoubleType()))
         newDataset = dataset.withColumn(accColName, initUDF(dataset[origCols[0]]))
 
@@ -1977,12 +1977,12 @@ class OneVsRestModel(Model, OneVsRestParams, JavaMLReadable, JavaMLWritable):
 
         # update the accumulator column with the result of prediction of models
         aggregatedDataset = newDataset
-        for index, model in enumerate(self.models):
+        for model in self.models:
             rawPredictionCol = model._call_java("getRawPredictionCol")
             columns = origCols + [rawPredictionCol, accColName]
 
             # add temporary column to store intermediate scores and update
-            tmpColName = "mbc$tmp" + str(uuid.uuid4())
+            tmpColName = f"mbc$tmp{str(uuid.uuid4())}"
             updateUDF = udf(
                 lambda predictions, prediction: predictions + [prediction.tolist()[1]],
                 ArrayType(DoubleType()))
@@ -1994,7 +1994,7 @@ class OneVsRestModel(Model, OneVsRestParams, JavaMLReadable, JavaMLWritable):
 
             # switch out the intermediate column with the accumulator column
             aggregatedDataset = updatedDataset\
-                .select(*newColumns).withColumnRenamed(tmpColName, accColName)
+                    .select(*newColumns).withColumnRenamed(tmpColName, accColName)
 
         if handlePersistence:
             newDataset.unpersist()

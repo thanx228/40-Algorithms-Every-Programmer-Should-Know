@@ -205,9 +205,8 @@ class BarrierTaskContext(TaskContext):
         if self._port is None or self._secret is None:
             raise Exception("Not supported to call getTaskInfos() before initialize " +
                             "BarrierTaskContext.")
-        else:
-            addresses = self._localProperties.get("addresses", "")
-            return [BarrierTaskInfo(h.strip()) for h in addresses.split(",")]
+        addresses = self._localProperties.get("addresses", "")
+        return [BarrierTaskInfo(h.strip()) for h in addresses.split(",")]
 
 
 class BarrierTaskInfo(object):

@@ -118,7 +118,7 @@ def wrap_grouped_map_pandas_udf(f, return_type, argspec, runner_conf):
         if not isinstance(result, pd.DataFrame):
             raise TypeError("Return type of the user-defined function should be "
                             "pandas.DataFrame, but is {}".format(type(result)))
-        if not len(result.columns) == len(return_type):
+        if len(result.columns) != len(return_type):
             raise RuntimeError(
                 "Number of columns of the returned pandas.DataFrame "
                 "doesn't match specified schema. "
@@ -162,15 +162,11 @@ def wrap_window_agg_pandas_udf(f, return_type):
 
 def read_single_udf(pickleSer, infile, eval_type, runner_conf):
     num_arg = read_int(infile)
-    arg_offsets = [read_int(infile) for i in range(num_arg)]
+    arg_offsets = [read_int(infile) for _ in range(num_arg)]
     row_func = None
-    for i in range(read_int(infile)):
+    for _ in range(read_int(infile)):
         f, return_type = read_command(pickleSer, infile)
-        if row_func is None:
-            row_func = f
-        else:
-            row_func = chain(row_func, f)
-
+        row_func = f if row_func is None else chain(row_func, f)
     # make sure StopIteration's raised in the user code are not ignored
     # when they are processed in a for loop, raise them as RuntimeError's instead
     func = fail_on_stopiteration(row_func)
@@ -188,7 +184,7 @@ def read_single_udf(pickleSer, infile, eval_type, runner_conf):
     elif eval_type == PythonEvalType.SQL_BATCHED_UDF:
         return arg_offsets, wrap_udf(func, return_type)
     else:
-        raise ValueError("Unknown eval type: {}".format(eval_type))
+        raise ValueError(f"Unknown eval type: {eval_type}")
 
 
 def read_udfs(pickleSer, infile, eval_type):
@@ -201,7 +197,7 @@ def read_udfs(pickleSer, infile, eval_type):
 
         # Load conf used for pandas_udf evaluation
         num_conf = read_int(infile)
-        for i in range(num_conf):
+        for _ in range(num_conf):
             k = utf8_deserializer.loads(infile)
             v = utf8_deserializer.loads(infile)
             runner_conf[k] = v
@@ -231,7 +227,7 @@ def read_udfs(pickleSer, infile, eval_type):
         split_offset = arg_offsets[0] + 1
         arg0 = ["a[%d]" % o for o in arg_offsets[1: split_offset]]
         arg1 = ["a[%d]" % o for o in arg_offsets[split_offset:]]
-        mapper_str = "lambda a: f([%s], [%s])" % (", ".join(arg0), ", ".join(arg1))
+        mapper_str = f'lambda a: f([{", ".join(arg0)}], [{", ".join(arg1)}])'
     else:
         # Create function like this:
         #   lambda a: (f0(a[0]), f1(a[1], a[2]), f2(a[3]))
@@ -242,7 +238,7 @@ def read_udfs(pickleSer, infile, eval_type):
             udfs['f%d' % i] = udf
             args = ["a[%d]" % o for o in arg_offsets]
             call_udf.append("f%d(%s)" % (i, ", ".join(args)))
-        mapper_str = "lambda a: (%s)" % (", ".join(call_udf))
+        mapper_str = f'lambda a: ({", ".join(call_udf)})'
 
     mapper = eval(mapper_str, udfs)
     func = lambda _, it: map(mapper, it)

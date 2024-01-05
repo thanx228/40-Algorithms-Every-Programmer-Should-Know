@@ -38,8 +38,7 @@ def _jvm():
     Returns the JVM view associated with SparkContext. Must be called
     after SparkContext is initialized.
     """
-    jvm = SparkContext._jvm
-    if jvm:
+    if jvm := SparkContext._jvm:
         return jvm
     else:
         raise AttributeError("Cannot load _jvm from SparkContext. Is SparkContext initialized?")
@@ -63,7 +62,7 @@ class Identifiable(object):
         Generate a unique unicode id for the object. The default implementation
         concatenates the class name, "_", and 12 random hex chars.
         """
-        return unicode(cls.__name__ + "_" + uuid.uuid4().hex[-12:])
+        return unicode(f"{cls.__name__}_{uuid.uuid4().hex[-12:]}")
 
 
 @inherit_doc
@@ -84,7 +83,9 @@ class BaseReadWrite(object):
 
         .. note:: Deprecated in 2.1 and will be removed in 3.0, use session instead.
         """
-        raise NotImplementedError("Read/Write is not yet implemented for type: %s" % type(self))
+        raise NotImplementedError(
+            f"Read/Write is not yet implemented for type: {type(self)}"
+        )
 
     def session(self, sparkSession):
         """
@@ -140,7 +141,9 @@ class MLWriter(BaseReadWrite):
         save() handles overwriting and then calls this method.  Subclasses should override this
         method to implement the actual saving of the instance.
         """
-        raise NotImplementedError("MLWriter is not yet implemented for type: %s" % type(self))
+        raise NotImplementedError(
+            f"MLWriter is not yet implemented for type: {type(self)}"
+        )
 
     def overwrite(self):
         """Overwrites if the output path already exists."""
@@ -179,7 +182,7 @@ class JavaMLWriter(MLWriter):
     def save(self, path):
         """Save the ML instance to the input path."""
         if not isinstance(path, basestring):
-            raise TypeError("path should be a basestring, got type %s" % type(path))
+            raise TypeError(f"path should be a basestring, got type {type(path)}")
         self._jwrite.save(path)
 
     def overwrite(self):
@@ -279,7 +282,9 @@ class MLReader(BaseReadWrite):
 
     def load(self, path):
         """Load the ML instance from the input path."""
-        raise NotImplementedError("MLReader is not yet implemented for type: %s" % type(self))
+        raise NotImplementedError(
+            f"MLReader is not yet implemented for type: {type(self)}"
+        )
 
 
 @inherit_doc
@@ -296,7 +301,7 @@ class JavaMLReader(MLReader):
     def load(self, path):
         """Load the ML instance from the input path."""
         if not isinstance(path, basestring):
-            raise TypeError("path should be a basestring, got type %s" % type(path))
+            raise TypeError(f"path should be a basestring, got type {type(path)}")
         java_obj = self._jread.load(path)
         if not hasattr(self._clazz, "_from_java"):
             raise NotImplementedError("This Java ML type cannot be loaded into Python currently: %r"
@@ -330,8 +335,8 @@ class JavaMLReader(MLReader):
         java_package = clazz.__module__.replace("pyspark", "org.apache.spark")
         if clazz.__name__ in ("Pipeline", "PipelineModel"):
             # Remove the last package name "pipeline" for Pipeline and PipelineModel.
-            java_package = ".".join(java_package.split(".")[0:-1])
-        return java_package + "." + clazz.__name__
+            java_package = ".".join(java_package.split(".")[:-1])
+        return f"{java_package}.{clazz.__name__}"
 
     @classmethod
     def _load_java_obj(cls, clazz):
@@ -464,7 +469,7 @@ class DefaultParamsWriter(MLWriter):
         .. note:: :py:meth:`DefaultParamsWriter.saveMetadata` for details on what this includes.
         """
         uid = instance.uid
-        cls = instance.__module__ + '.' + instance.__class__.__name__
+        cls = f'{instance.__module__}.{instance.__class__.__name__}'
 
         # User-supplied param values
         params = instance._paramMap
@@ -475,11 +480,9 @@ class DefaultParamsWriter(MLWriter):
             for p in params:
                 jsonParams[p.name] = params[p]
 
-        # Default param values
-        jsonDefaultParams = {}
-        for p in instance._defaultParamMap:
-            jsonDefaultParams[p.name] = instance._defaultParamMap[p]
-
+        jsonDefaultParams = {
+            p.name: instance._defaultParamMap[p] for p in instance._defaultParamMap
+        }
         basicMetadata = {"class": cls, "timestamp": long(round(time.time() * 1000)),
                          "sparkVersion": sc.version, "uid": uid, "paramMap": jsonParams,
                          "defaultParamMap": jsonDefaultParams}
@@ -556,8 +559,7 @@ class DefaultParamsReader(MLReader):
         """
         metadataPath = os.path.join(path, "metadata")
         metadataStr = sc.textFile(metadataPath, 1).first()
-        loadedVals = DefaultParamsReader._parseMetaData(metadataStr, expectedClassName)
-        return loadedVals
+        return DefaultParamsReader._parseMetaData(metadataStr, expectedClassName)
 
     @staticmethod
     def _parseMetaData(metadataStr, expectedClassName=""):
@@ -569,10 +571,11 @@ class DefaultParamsReader(MLReader):
         :param expectedClassName:  If non empty, this is checked against the loaded metadata.
         """
         metadata = json.loads(metadataStr)
-        className = metadata['class']
         if len(expectedClassName) > 0:
-            assert className == expectedClassName, "Error loading metadata: Expected " + \
-                "class name {} but found class name {}".format(expectedClassName, className)
+            className = metadata['class']
+            assert (
+                className == expectedClassName
+            ), f"Error loading metadata: Expected class name {expectedClassName} but found class name {className}"
         return metadata
 
     @staticmethod
@@ -609,5 +612,4 @@ class DefaultParamsReader(MLReader):
         metadata = DefaultParamsReader.loadMetadata(path, sc)
         pythonClassName = metadata['class'].replace("org.apache.spark", "pyspark")
         py_type = DefaultParamsReader.__get_class(pythonClassName)
-        instance = py_type.load(path)
-        return instance
+        return py_type.load(path)

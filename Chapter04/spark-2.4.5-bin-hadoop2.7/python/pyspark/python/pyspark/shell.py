@@ -21,6 +21,7 @@ An interactive shell.
 This file is designed to be launched as a PYTHONSTARTUP script.
 """
 
+
 import atexit
 import os
 import platform
@@ -61,10 +62,9 @@ print(r"""Welcome to
    /__ / .__/\_,_/_/ /_/\_\   version %s
       /_/
 """ % sc.version)
-print("Using Python version %s (%s, %s)" % (
-    platform.python_version(),
-    platform.python_build()[0],
-    platform.python_build()[1]))
+print(
+    f"Using Python version {platform.python_version()} ({platform.python_build()[0]}, {platform.python_build()[1]})"
+)
 print("SparkSession available as 'spark'.")
 
 # The ./bin/pyspark script stores the old PYTHONSTARTUP value in OLD_PYTHONSTARTUP,

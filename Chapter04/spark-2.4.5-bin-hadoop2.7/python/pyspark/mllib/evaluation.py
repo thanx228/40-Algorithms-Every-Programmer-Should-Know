@@ -233,24 +233,22 @@ class MulticlassMetrics(JavaModelWrapper):
         """
         Returns precision or precision for a given label (category) if specified.
         """
-        if label is None:
-            # note:: Deprecated in 2.0.0. Use accuracy.
-            warnings.warn("Deprecated in 2.0.0. Use accuracy.", DeprecationWarning)
-            return self.call("precision")
-        else:
+        if label is not None:
             return self.call("precision", float(label))
+        # note:: Deprecated in 2.0.0. Use accuracy.
+        warnings.warn("Deprecated in 2.0.0. Use accuracy.", DeprecationWarning)
+        return self.call("precision")
 
     @since('1.4.0')
     def recall(self, label=None):
         """
         Returns recall or recall for a given label (category) if specified.
         """
-        if label is None:
-            # note:: Deprecated in 2.0.0. Use accuracy.
-            warnings.warn("Deprecated in 2.0.0. Use accuracy.", DeprecationWarning)
-            return self.call("recall")
-        else:
+        if label is not None:
             return self.call("recall", float(label))
+        # note:: Deprecated in 2.0.0. Use accuracy.
+        warnings.warn("Deprecated in 2.0.0. Use accuracy.", DeprecationWarning)
+        return self.call("recall")
 
     @since('1.4.0')
     def fMeasure(self, label=None, beta=None):
@@ -258,17 +256,15 @@ class MulticlassMetrics(JavaModelWrapper):
         Returns f-measure or f-measure for a given label (category) if specified.
         """
         if beta is None:
-            if label is None:
-                # note:: Deprecated in 2.0.0. Use accuracy.
-                warnings.warn("Deprecated in 2.0.0. Use accuracy.", DeprecationWarning)
-                return self.call("fMeasure")
-            else:
+            if label is not None:
                 return self.call("fMeasure", label)
+            # note:: Deprecated in 2.0.0. Use accuracy.
+            warnings.warn("Deprecated in 2.0.0. Use accuracy.", DeprecationWarning)
+            return self.call("fMeasure")
+        elif label is None:
+            raise Exception("If the beta parameter is specified, label can not be none")
         else:
-            if label is None:
-                raise Exception("If the beta parameter is specified, label can not be none")
-            else:
-                return self.call("fMeasure", label, beta)
+            return self.call("fMeasure", label, beta)
 
     @property
     @since('2.0.0')

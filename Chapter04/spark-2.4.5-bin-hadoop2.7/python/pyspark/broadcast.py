@@ -43,7 +43,7 @@ _broadcastRegistry = {}
 def _from_id(bid):
     from pyspark.broadcast import _broadcastRegistry
     if bid not in _broadcastRegistry:
-        raise Exception("Broadcast variable '%s' not loaded!" % bid)
+        raise Exception(f"Broadcast variable '{bid}' not loaded!")
     return _broadcastRegistry[bid]
 
 
@@ -114,8 +114,7 @@ class Broadcast(object):
         except pickle.PickleError:
             raise
         except Exception as e:
-            msg = "Could not serialize broadcast: %s: %s" \
-                  % (e.__class__.__name__, _exception_message(e))
+            msg = f"Could not serialize broadcast: {e.__class__.__name__}: {_exception_message(e)}"
             print_exec(sys.stderr)
             raise pickle.PicklingError(msg)
         f.close()
@@ -187,8 +186,7 @@ class BroadcastPickleRegistry(threading.local):
         self.__dict__.setdefault("_registry", set())
 
     def __iter__(self):
-        for bcast in self._registry:
-            yield bcast
+        yield from self._registry
 
     def add(self, bcast):
         self._registry.add(bcast)

@@ -114,7 +114,7 @@ class ExamplePointUDT(UserDefinedType):
     """
 
     @classmethod
-    def sqlType(self):
+    def sqlType(cls):
         return ArrayType(DoubleType(), False)
 
     @classmethod
@@ -144,10 +144,10 @@ class ExamplePoint:
         self.y = y
 
     def __repr__(self):
-        return "ExamplePoint(%s,%s)" % (self.x, self.y)
+        return f"ExamplePoint({self.x},{self.y})"
 
     def __str__(self):
-        return "(%s,%s)" % (self.x, self.y)
+        return f"({self.x},{self.y})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and \
@@ -160,7 +160,7 @@ class PythonOnlyUDT(UserDefinedType):
     """
 
     @classmethod
-    def sqlType(self):
+    def sqlType(cls):
         return ArrayType(DoubleType(), False)
 
     @classmethod
@@ -386,7 +386,7 @@ class SQLTests(ReusedSQLTestCase):
         self.assertEqual(14, self.df.filter((self.df.key <= 3) | (self.df.value < "2")).count())
         self.assertRaises(ValueError, lambda: self.df.key <= 3 or self.df.value < "2")
         self.assertEqual(99, self.df.filter(~(self.df.key == 1)).count())
-        self.assertRaises(ValueError, lambda: not self.df.key == 1)
+        self.assertRaises(ValueError, lambda: self.df.key != 1)
 
     def test_udf_with_callable(self):
         d = [Row(number=i, squared=i**2) for i in range(10)]
@@ -596,10 +596,9 @@ class SQLTests(ReusedSQLTestCase):
         f = udf(lambda a, b: a == b, BooleanType())
 
         def runWithJoinType(join_type, type_string):
-            with self.assertRaisesRegexp(
-                    AnalysisException,
-                    'Using PythonUDF.*%s is not supported.' % type_string):
+            with self.assertRaisesRegexp(AnalysisException, f'Using PythonUDF.*{type_string} is not supported.'):
                 left.join(right, [f("a", "b"), left.a1 == right.b1], join_type).collect()
+
         runWithJoinType("full", "FullOuter")
         runWithJoinType("left", "LeftOuter")
         runWithJoinType("right", "RightOuter")
@@ -1419,7 +1418,7 @@ class SQLTests(ReusedSQLTestCase):
         self.assertIsInstance(col("foo")[1:3], Column)
         self.assertIsInstance(col("foo")[0], Column)
         self.assertIsInstance(col("foo")["bar"], Column)
-        self.assertRaises(ValueError, lambda: col("foo")[0:10:2])
+        self.assertRaises(ValueError, lambda: col("foo")[:10:2])
 
     def test_column_select(self):
         df = self.df
@@ -1443,7 +1442,7 @@ class SQLTests(ReusedSQLTestCase):
         from pyspark.sql import functions
         self.assertEqual((0, u'99'),
                          tuple(g.agg(functions.first(df.key), functions.last(df.value)).first()))
-        self.assertTrue(95 < g.agg(functions.approxCountDistinct(df.key)).first()[0])
+        self.assertTrue(g.agg(functions.approxCountDistinct(df.key)).first()[0] > 95)
         self.assertEqual(100, g.agg(functions.countDistinct(df.value)).first()[0])
 
     def test_first_last_ignorenulls(self):
@@ -1544,10 +1543,10 @@ class SQLTests(ReusedSQLTestCase):
         from pyspark.sql import functions
         rnd = df.select('key', functions.rand()).collect()
         for row in rnd:
-            assert row[1] >= 0.0 and row[1] <= 1.0, "got: %s" % row[1]
+            assert row[1] >= 0.0 and row[1] <= 1.0, f"got: {row[1]}"
         rndn = df.select('key', functions.randn(5)).collect()
         for row in rndn:
-            assert row[1] >= -4.0 and row[1] <= 4.0, "got: %s" % row[1]
+            assert row[1] >= -4.0 and row[1] <= 4.0, f"got: {row[1]}"
 
         # If the specified seed is 0, we should use it.
         # https://issues.apache.org/jira/browse/SPARK-9691
@@ -1624,7 +1623,7 @@ class SQLTests(ReusedSQLTestCase):
         struct1 = StructType().add("f1", StringType(), True).add("f2", StringType(), True, None)
         self.assertIs(struct1["f1"], struct1.fields[0])
         self.assertIs(struct1[0], struct1.fields[0])
-        self.assertEqual(struct1[0:1], StructType(struct1.fields[0:1]))
+        self.assertEqual(struct1[:1], StructType(struct1.fields[:1]))
         self.assertRaises(KeyError, lambda: struct1["f9"])
         self.assertRaises(IndexError, lambda: struct1[9])
         self.assertRaises(TypeError, lambda: struct1[9.9])
@@ -1687,7 +1686,7 @@ class SQLTests(ReusedSQLTestCase):
         self.spark.sql("SET spark.sql.sources.default=org.apache.spark.sql.json")
         actual = self.spark.read.load(path=tmpPath)
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
-        self.spark.sql("SET spark.sql.sources.default=" + defaultDataSourceName)
+        self.spark.sql(f"SET spark.sql.sources.default={defaultDataSourceName}")
 
         csvpath = os.path.join(tempfile.mkdtemp(), 'data')
         df.write.option('quote', None).format('csv').save(csvpath)
@@ -1711,11 +1710,11 @@ class SQLTests(ReusedSQLTestCase):
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
 
         df.write.mode("overwrite").options(noUse="this options will not be used in save.")\
-                .option("noUse", "this option will not be used in save.")\
-                .format("json").save(path=tmpPath)
+                    .option("noUse", "this option will not be used in save.")\
+                    .format("json").save(path=tmpPath)
         actual =\
-            self.spark.read.format("json")\
-                           .load(path=tmpPath, noUse="this options will not be used in load.")
+                self.spark.read.format("json")\
+                               .load(path=tmpPath, noUse="this options will not be used in load.")
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
 
         defaultDataSourceName = self.spark.conf.get("spark.sql.sources.default",
@@ -1723,7 +1722,7 @@ class SQLTests(ReusedSQLTestCase):
         self.spark.sql("SET spark.sql.sources.default=org.apache.spark.sql.json")
         actual = self.spark.read.load(path=tmpPath)
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
-        self.spark.sql("SET spark.sql.sources.default=" + defaultDataSourceName)
+        self.spark.sql(f"SET spark.sql.sources.default={defaultDataSourceName}")
 
         shutil.rmtree(tmpPath)
 
@@ -1991,7 +1990,7 @@ class SQLTests(ReusedSQLTestCase):
             try:
                 sdf = self.spark.readStream.format('text').load(self.input_dir)
                 sq = sdf.writeStream.foreach(writer).start()
-                for i in range(num_files):
+                for _ in range(num_files):
                     self.write_input_file()
                     sq.processAllAvailable()
             finally:
@@ -2004,10 +2003,10 @@ class SQLTests(ReusedSQLTestCase):
                 sq = sdf.writeStream.foreach(writer).start()
                 self.write_input_file()
                 sq.processAllAvailable()
-                self.fail("invalid writer %s did not fail the query" % str(writer))  # not expected
+                self.fail(f"invalid writer {str(writer)} did not fail the query")
             except Exception as e:
                 if msg:
-                    assert msg in str(e), "%s not in %s" % (msg, str(e))
+                    assert msg in str(e), f"{msg} not in {str(e)}"
 
             finally:
                 self.stop_all()
@@ -2024,8 +2023,7 @@ class SQLTests(ReusedSQLTestCase):
 
         def _read_events(self, dir, json):
             rows = self.spark.read.schema(json).json(dir).collect()
-            dicts = [row.asDict() for row in rows]
-            return dicts
+            return [row.asDict() for row in rows]
 
         def _write_event(self, dir, event):
             import uuid
@@ -2065,13 +2063,13 @@ class SQLTests(ReusedSQLTestCase):
 
         open_events = tester.open_events()
         self.assertEqual(len(open_events), 2)
-        self.assertSetEqual(set([e['epoch'] for e in open_events]), {0, 1})
+        self.assertSetEqual({e['epoch'] for e in open_events}, {0, 1})
 
         self.assertEqual(len(tester.process_events()), 2)
 
         close_events = tester.close_events()
         self.assertEqual(len(close_events), 2)
-        self.assertSetEqual(set([e['error'] for e in close_events]), {'None'})
+        self.assertSetEqual({e['error'] for e in close_events}, {'None'})
 
     def test_streaming_foreach_with_open_returning_false(self):
         tester = self.ForeachWriterTester(self.spark)
@@ -2095,7 +2093,7 @@ class SQLTests(ReusedSQLTestCase):
 
         close_events = tester.close_events()
         self.assertEqual(len(close_events), 2)
-        self.assertSetEqual(set([e['error'] for e in close_events]), {'None'})
+        self.assertSetEqual({e['error'] for e in close_events}, {'None'})
 
     def test_streaming_foreach_without_open_method(self):
         tester = self.ForeachWriterTester(self.spark)
@@ -3019,8 +3017,8 @@ class SQLTests(ReusedSQLTestCase):
         spark = self.spark
         spark.catalog._reset()
         spark.sql("CREATE DATABASE some_db")
-        functions = dict((f.name, f) for f in spark.catalog.listFunctions())
-        functionsDefault = dict((f.name, f) for f in spark.catalog.listFunctions("default"))
+        functions = {f.name: f for f in spark.catalog.listFunctions()}
+        functionsDefault = {f.name: f for f in spark.catalog.listFunctions("default")}
         self.assertTrue(len(functions) > 200)
         self.assertTrue("+" in functions)
         self.assertTrue("like" in functions)
@@ -3038,8 +3036,10 @@ class SQLTests(ReusedSQLTestCase):
         spark.catalog.registerFunction("temp_func", lambda x: str(x))
         spark.sql("CREATE FUNCTION func1 AS 'org.apache.spark.data.bricks'")
         spark.sql("CREATE FUNCTION some_db.func2 AS 'org.apache.spark.data.bricks'")
-        newFunctions = dict((f.name, f) for f in spark.catalog.listFunctions())
-        newFunctionsSomeDb = dict((f.name, f) for f in spark.catalog.listFunctions("some_db"))
+        newFunctions = {f.name: f for f in spark.catalog.listFunctions()}
+        newFunctionsSomeDb = {
+            f.name: f for f in spark.catalog.listFunctions("some_db")
+        }
         self.assertTrue(set(functions).issubset(set(newFunctions)))
         self.assertTrue(set(functions).issubset(set(newFunctionsSomeDb)))
         self.assertTrue("temp_func" in newFunctions)
@@ -3229,7 +3229,7 @@ class SQLTests(ReusedSQLTestCase):
         # and types not in _array_type_mappings are considered unsupported.
         # `array.typecodes` are not supported in python 2.
         if sys.version_info[0] < 3:
-            all_types = set(['c', 'b', 'B', 'u', 'h', 'H', 'i', 'I', 'l', 'L', 'f', 'd'])
+            all_types = {'c', 'b', 'B', 'u', 'h', 'H', 'i', 'I', 'l', 'L', 'f', 'd'}
         else:
             all_types = set(array.typecodes)
         unsupported_types = all_types - set(supported_types)
@@ -3623,7 +3623,7 @@ class HiveSparkSubmitTests(SparkSubmitTests):
         # Hive metastore. If this derby dir exists, HiveContext is using
         # Hive metastore.
         metastore_path = os.path.join(tempfile.mkdtemp(), "spark16224_metastore_db")
-        metastore_URL = "jdbc:derby:;databaseName=" + metastore_path + ";create=true"
+        metastore_URL = f"jdbc:derby:;databaseName={metastore_path};create=true"
         hive_site_dir = os.path.join(self.programDir, "conf")
         hive_site_file = self.createTempFile("hive-site.xml", ("""
             |<configuration>
@@ -3851,7 +3851,7 @@ class HiveContextSQLTests(ReusedPySparkTestCase):
         self.assertEqual(sorted(df.collect()), sorted(actual.collect()))
         self.spark.sql("DROP TABLE savedJsonTable")
         self.spark.sql("DROP TABLE externalJsonTable")
-        self.spark.sql("SET spark.sql.sources.default=" + defaultDataSourceName)
+        self.spark.sql(f"SET spark.sql.sources.default={defaultDataSourceName}")
 
         shutil.rmtree(tmpPath)
 
@@ -4031,7 +4031,7 @@ class DataTypeVerificationTests(unittest.TestCase):
             try:
                 _make_type_verifier(data_type, nullable=True)(obj)
             except Exception:
-                self.fail("verify_type(%s, %s, nullable=True)" % (obj, data_type))
+                self.fail(f"verify_type({obj}, {data_type}, nullable=True)")
 
     def test_verify_type_not_nullable(self):
         import array
@@ -4189,11 +4189,11 @@ class DataTypeVerificationTests(unittest.TestCase):
             try:
                 _make_type_verifier(data_type, nullable=False)(obj)
             except Exception:
-                self.fail("verify_type(%s, %s, nullable=False)" % (obj, data_type))
+                self.fail(f"verify_type({obj}, {data_type}, nullable=False)")
 
         # Check failure cases
         for obj, data_type, exp in failure_spec:
-            msg = "verify_type(%s, %s, nullable=False) == %s" % (obj, data_type, exp)
+            msg = f"verify_type({obj}, {data_type}, nullable=False) == {exp}"
             with self.assertRaises(exp, msg=msg):
                 _make_type_verifier(data_type, nullable=False)(obj)
 
@@ -4256,9 +4256,10 @@ class ArrowTests(ReusedSQLTestCase):
     def create_pandas_data_frame(self):
         import pandas as pd
         import numpy as np
-        data_dict = {}
-        for j, name in enumerate(self.schema.names):
-            data_dict[name] = [self.data[i][j] for i in range(len(self.data))]
+        data_dict = {
+            name: [self.data[i][j] for i in range(len(self.data))]
+            for j, name in enumerate(self.schema.names)
+        }
         # need to convert these to numpy types first
         data_dict["2_int_t"] = np.int32(data_dict["2_int_t"])
         data_dict["4_float_t"] = np.float32(data_dict["4_float_t"])
@@ -4304,11 +4305,12 @@ class ArrowTests(ReusedSQLTestCase):
                     df.toPandas()
 
     def test_null_conversion(self):
-        df_null = self.spark.createDataFrame([tuple([None for _ in range(len(self.data[0]))])] +
-                                             self.data)
+        df_null = self.spark.createDataFrame(
+            ([tuple(None for _ in range(len(self.data[0])))] + self.data)
+        )
         pdf = df_null.toPandas()
         null_counts = pdf.isnull().sum().tolist()
-        self.assertTrue(all([c == 1 for c in null_counts]))
+        self.assertTrue(all(c == 1 for c in null_counts))
 
     def _toPandas_arrow_toggle(self, df):
         with self.sql_conf({"spark.sql.execution.arrow.enabled": False}):
@@ -5580,12 +5582,12 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
                 float=pdf.float * 2,
                 double=pdf.double * 2,
                 decim=pdf.decim * 2,
-                bool=False if pdf.bool else True,
-                str=pdf.str + 'there',
+                bool=not pdf.bool,
+                str=f'{pdf.str}there',
                 array=pdf.array,
             ),
             output_schema,
-            PandasUDFType.GROUPED_MAP
+            PandasUDFType.GROUPED_MAP,
         )
 
         udf2 = pandas_udf(
@@ -5597,12 +5599,12 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
                 float=pdf.float * 2,
                 double=pdf.double * 2,
                 decim=pdf.decim * 2,
-                bool=False if pdf.bool else True,
-                str=pdf.str + 'there',
+                bool=not pdf.bool,
+                str=f'{pdf.str}there',
                 array=pdf.array,
             ),
             output_schema,
-            PandasUDFType.GROUPED_MAP
+            PandasUDFType.GROUPED_MAP,
         )
 
         udf3 = pandas_udf(
@@ -5615,12 +5617,12 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
                 float=pdf.float * 2,
                 double=pdf.double * 2,
                 decim=pdf.decim * 2,
-                bool=False if pdf.bool else True,
-                str=pdf.str + 'there',
+                bool=not pdf.bool,
+                str=f'{pdf.str}there',
                 array=pdf.array,
             ),
             output_schema,
-            PandasUDFType.GROUPED_MAP
+            PandasUDFType.GROUPED_MAP,
         )
 
         result1 = df.groupby('id').apply(udf1).sort('id').toPandas()
@@ -5632,7 +5634,7 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
         result3 = df.groupby('id').apply(udf3).sort('id').toPandas()
         expected3 = expected1
 
-        self.assertPandasEqual(expected1, result1)
+        self.assertPandasEqual(expected3, result1)
         self.assertPandasEqual(expected2, result2)
         self.assertPandasEqual(expected3, result3)
 
@@ -5897,8 +5899,7 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
 
         # Helper function to set column names from a list
         def rename_pdf(pdf, names):
-            pdf.rename(columns={old: new for old, new in
-                                zip(pd_result.columns, names)}, inplace=True)
+            pdf.rename(columns=dict(zip(pd_result.columns, names)), inplace=True)
 
         df = self.data
         grouped_df = df.groupby('id')
@@ -5921,7 +5922,7 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
 
         # The UDF result should assign columns by name from the pdf
         result = grouped_df.apply(ordered_udf).sort('id', 'v')\
-            .select('id', 'u', 'v').toPandas()
+                .select('id', 'u', 'v').toPandas()
         pd_result = grouped_pdf.apply(change_col_order)
         expected = pd_result.sort_values(['id', 'v']).reset_index(drop=True)
         self.assertPandasEqual(expected, result)
@@ -5939,7 +5940,7 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
 
         # The UDF result uses positional columns from the pdf
         result = grouped_df.apply(range_udf).sort('id', 'v') \
-            .select('id', 'u', 'v').toPandas()
+                .select('id', 'u', 'v').toPandas()
         pd_result = grouped_pdf.apply(range_col_order)
         rename_pdf(pd_result, ['id', 'u', 'v'])
         expected = pd_result.sort_values(['id', 'v']).reset_index(drop=True)
@@ -5957,7 +5958,7 @@ class GroupedMapPandasUDFTests(ReusedSQLTestCase):
 
         # The UDF result should assign columns by position of integer index
         result = grouped_df.apply(int_index_udf).sort('id', 'v') \
-            .select('id', 'u', 'v').toPandas()
+                .select('id', 'u', 'v').toPandas()
         pd_result = grouped_pdf.apply(int_index)
         rename_pdf(pd_result, ['id', 'u', 'v'])
         expected = pd_result.sort_values(['id', 'v']).reset_index(drop=True)

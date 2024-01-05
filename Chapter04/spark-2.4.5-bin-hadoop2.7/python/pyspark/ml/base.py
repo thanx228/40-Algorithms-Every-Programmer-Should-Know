@@ -126,10 +126,7 @@ class Estimator(Params):
                 models[index] = model
             return models
         elif isinstance(params, dict):
-            if params:
-                return self.copy(params)._fit(dataset)
-            else:
-                return self._fit(dataset)
+            return self.copy(params)._fit(dataset) if params else self._fit(dataset)
         else:
             raise ValueError("Params must be either a param map or a list/tuple of param maps, "
                              "but got %s." % type(params))
@@ -166,13 +163,12 @@ class Transformer(Params):
         """
         if params is None:
             params = dict()
-        if isinstance(params, dict):
-            if params:
-                return self.copy(params)._transform(dataset)
-            else:
-                return self._transform(dataset)
+        if not isinstance(params, dict):
+            raise ValueError(f"Params must be a param map but got {type(params)}.")
+        if params:
+            return self.copy(params)._transform(dataset)
         else:
-            raise ValueError("Params must be a param map but got %s." % type(params))
+            return self._transform(dataset)
 
 
 @inherit_doc
@@ -222,7 +218,7 @@ class UnaryTransformer(HasInputCol, HasOutputCol, Transformer):
         inputType = schema[self.getInputCol()].dataType
         self.validateInputType(inputType)
         if self.getOutputCol() in schema.names:
-            raise ValueError("Output column %s already exists." % self.getOutputCol())
+            raise ValueError(f"Output column {self.getOutputCol()} already exists.")
         outputFields = copy.copy(schema.fields)
         outputFields.append(StructField(self.getOutputCol(),
                                         self.outputDataType(),
@@ -232,6 +228,6 @@ class UnaryTransformer(HasInputCol, HasOutputCol, Transformer):
     def _transform(self, dataset):
         self.transformSchema(dataset.schema)
         transformUDF = udf(self.createTransformFunc(), self.outputDataType())
-        transformedDataset = dataset.withColumn(self.getOutputCol(),
-                                                transformUDF(dataset[self.getInputCol()]))
-        return transformedDataset
+        return dataset.withColumn(
+            self.getOutputCol(), transformUDF(dataset[self.getInputCol()])
+        )

@@ -21,7 +21,7 @@ import imp
 
 # This is a hack to always refer the main code rather than built zip.
 main_code_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-daemon = imp.load_source("daemon", "%s/pyspark/daemon.py" % main_code_dir)
+daemon = imp.load_source("daemon", f"{main_code_dir}/pyspark/daemon.py")
 
 if "COVERAGE_PROCESS_START" in os.environ:
     worker = imp.load_source("worker", "%s/pyspark/worker.py" % main_code_dir)
